@@ -3,7 +3,6 @@ name: Build and Deploy ASP.NET Core App to IIS via SSH
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # 👈 allows manual run from GitHub UI
 
 jobs:
   build:
@@ -11,29 +10,35 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: ✅ Checkout Code
+      - name: "✅ Checkout Code"
         uses: actions/checkout@v3
 
-      - name: 🛠 Setup .NET SDK
+      - name: "🛠 Setup .NET SDK"
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: 📦 Restore, Build, and Publish
+      - name: "📦 Restore, Build and Publish"
         run: |
           mkdir logs
+
+          echo "🔄 Restoring dependencies..."
           dotnet restore | Tee-Object -FilePath logs/restore.log
+
+          echo "🏗 Building project..."
           dotnet build --configuration Release | Tee-Object -FilePath logs/build.log
+
+          echo "🚀 Publishing..."
           dotnet publish --configuration Release --output publish_output | Tee-Object -FilePath logs/publish.log
 
-      - name: ☁ Upload Build Logs
+      - name: "☁ Upload Build Logs"
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
           path: logs
 
-      - name: ☁ Upload Published App
+      - name: "☁ Upload Published App"
         uses: actions/upload-artifact@v4
         with:
           name: published-app
@@ -42,35 +47,35 @@ jobs:
   deploy:
     name: 🚀 Deploy to IIS Server via SSH
     needs: build
-    runs-on: self-hosted # 👈 required for accessing private IP (192.168.x.x)
+    runs-on: ubuntu-latest
 
     steps:
-      - name: ⬇ Download Published App
+      - name: "⬇ Download Published App"
         uses: actions/download-artifact@v4
         with:
           name: published-app
           path: publish_output
 
-      - name: 📁 Setup SSH Key
+      - name: "📁 Setup SSH Key"
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.IIS_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: 📤 Deploy to Remote Server
+      - name: "📤 Deploy to Remote Server"
         run: |
-          echo "🧹 Cleaning IIS folder on remote server..."
-          ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} "powershell -Command `
-            \"Remove-Item -Recurse -Force '${{ secrets.IIS_SITE_PATH }}\\*' -ErrorAction SilentlyContinue; `
-            mkdir '${{ secrets.IIS_SITE_PATH }}' -Force\" " 2>&1 | tee ssh-clean.log
+          echo "🧹 Cleaning target IIS folder..."
+          ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} `
+            "Remove-Item -Recurse -Force '${{ secrets.IIS_SITE_PATH }}\*'; `
+             mkdir '${{ secrets.IIS_SITE_PATH }}' -Force" 2>&1 | tee ssh-clean.log
 
-          echo "📤 Copying files to remote server..."
+          echo "📤 Uploading files to IIS..."
           scp -r ./publish_output/* ${{ secrets.IIS_SSH_HOST }}:"${{ secrets.IIS_SITE_PATH }}" 2>&1 | tee ssh-copy.log
 
           echo "♻ Restarting IIS..."
-          ssh ${{ secrets.IIS_SSH_HOST }} "powershell -Command \"iisreset\"" 2>&1 | tee ssh-restart.log
+          ssh ${{ secrets.IIS_SSH_HOST }} "iisreset" 2>&1 | tee ssh-restart.log
 
-      - name: 📜 Upload Deployment Logs
+      - name: "📜 Upload Deployment Logs"
         if: always()
         uses: actions/upload-artifact@v4
         with:
