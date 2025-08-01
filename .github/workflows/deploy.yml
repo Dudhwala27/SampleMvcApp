@@ -42,7 +42,7 @@ jobs:
   deploy:
     name: 🚀 Deploy to IIS Server via SSH
     needs: build
-    runs-on: self-hosted
+    runs-on: self-hosted # 👈 required for accessing private IP (192.168.x.x)
 
     steps:
       - name: ⬇ Download Published App
@@ -51,27 +51,24 @@ jobs:
           name: published-app
           path: publish_output
 
-      - name: 📁 Setup SSH Key (Windows-safe)
-        shell: pwsh
+      - name: 📁 Setup SSH Key
         run: |
-          $sshDir = "$env:USERPROFILE\.ssh"
-          New-Item -ItemType Directory -Force -Path $sshDir
-          Set-Content -Path "$sshDir\id_rsa" -Value "${{ secrets.IIS_SSH_KEY }}"
-          icacls "$sshDir\id_rsa" /inheritance:r /grant:r "$env:USERNAME:F"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.IIS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-      - name: 📤 Deploy to Remote Server (via SSH)
-        shell: pwsh
+      - name: 📤 Deploy to Remote Server
         run: |
-          Write-Host "🧹 Cleaning IIS folder on remote server..."
+          echo "🧹 Cleaning IIS folder on remote server..."
           ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} "powershell -Command `
-            \"Remove-Item -Recurse -Force '${{ secrets.IIS_SITE_PATH }}\*' -ErrorAction SilentlyContinue; `
-            mkdir '${{ secrets.IIS_SITE_PATH }}' -Force\"" 2>&1 | Tee-Object -FilePath ssh-clean.log
+            \"Remove-Item -Recurse -Force '${{ secrets.IIS_SITE_PATH }}\\*' -ErrorAction SilentlyContinue; `
+            mkdir '${{ secrets.IIS_SITE_PATH }}' -Force\" " 2>&1 | tee ssh-clean.log
 
-          Write-Host "📤 Copying files to remote server..."
-          scp -r ./publish_output/* ${{ secrets.IIS_SSH_HOST }}:"${{ secrets.IIS_SITE_PATH }}" 2>&1 | Tee-Object -FilePath ssh-copy.log
+          echo "📤 Copying files to remote server..."
+          scp -r ./publish_output/* ${{ secrets.IIS_SSH_HOST }}:"${{ secrets.IIS_SITE_PATH }}" 2>&1 | tee ssh-copy.log
 
-          Write-Host "♻ Restarting IIS..."
-          ssh ${{ secrets.IIS_SSH_HOST }} "powershell -Command \"iisreset\"" 2>&1 | Tee-Object -FilePath ssh-restart.log
+          echo "♻ Restarting IIS..."
+          ssh ${{ secrets.IIS_SSH_HOST }} "powershell -Command \"iisreset\"" 2>&1 | tee ssh-restart.log
 
       - name: 📜 Upload Deployment Logs
         if: always()
