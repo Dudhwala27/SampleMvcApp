@@ -64,7 +64,10 @@ jobs:
           $server = "${{ secrets.IIS_SERVER }}"
           $sitePath = "${{ secrets.IIS_SITE_PATH }}"
           $sourcePath = Join-Path $env:GITHUB_WORKSPACE 'publish_output'
-
+           
+           # Allow connecting to non-domain servers
+          Set-Item WSMan:\localhost\Client\TrustedHosts -Value $server -Force
+          
           Write-Output "💻 Connecting to $server ..."
           Invoke-Command -ComputerName $server -Credential $cred -ScriptBlock {
               param ($sitePath, $sourcePath)
