@@ -42,7 +42,7 @@ jobs:
   deploy:
     name: 🚀 Deploy to IIS Server via SSH
     needs: build
-    runs-on: self-hosted  # 👈 must match your runner label
+    runs-on: self-hosted
 
     steps:
       - name: ⬇ Download Published App
@@ -64,7 +64,7 @@ jobs:
         run: |
           Write-Host "🧹 Cleaning IIS folder on remote server..."
           ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} "powershell -Command `
-            \"Remove-Item -Recurse -Force '${{ secrets.IIS_SITE_PATH }}\\*' -ErrorAction SilentlyContinue; `
+            \"Remove-Item -Recurse -Force '${{ secrets.IIS_SITE_PATH }}\*' -ErrorAction SilentlyContinue; `
             mkdir '${{ secrets.IIS_SITE_PATH }}' -Force\"" 2>&1 | Tee-Object -FilePath ssh-clean.log
 
           Write-Host "📤 Copying files to remote server..."
