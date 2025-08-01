@@ -3,6 +3,7 @@ name: Build and Deploy ASP.NET Core App to IIS via SSH
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -10,15 +11,15 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: "✅ Checkout Code"
+      - name: ✅ Checkout Code
         uses: actions/checkout@v3
 
-      - name: "🛠 Setup .NET SDK"
+      - name: 🛠 Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: "📦 Restore, Build and Publish"
+      - name: 📦 Restore, Build and Publish
         run: |
           mkdir logs
 
@@ -31,14 +32,14 @@ jobs:
           echo "🚀 Publishing..."
           dotnet publish --configuration Release --output publish_output | Tee-Object -FilePath logs/publish.log
 
-      - name: "☁ Upload Build Logs"
+      - name: ☁ Upload Build Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
           path: logs
 
-      - name: "☁ Upload Published App"
+      - name: ☁ Upload Published App
         uses: actions/upload-artifact@v4
         with:
           name: published-app
@@ -50,23 +51,27 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: "⬇ Download Published App"
+      - name: ⬇ Download Published App
         uses: actions/download-artifact@v4
         with:
           name: published-app
           path: publish_output
 
-      - name: "📁 Setup SSH Key"
+      - name: 📁 Setup SSH Key (Windows PowerShell)
+        shell: pwsh
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.IIS_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p ${{ secrets.IIS_SSH_HOST }} ${{ secrets.IIS_SSH_HOST }} >> ~/.ssh/known_hosts
+          $sshDir = "$env:USERPROFILE\.ssh"
+          New-Item -ItemType Directory -Force -Path $sshDir
+          Set-Content -Path "$sshDir\id_rsa" -Value "${{ secrets.IIS_SSH_KEY }}"
+          icacls "$sshDir\id_rsa" /inheritance:r /grant:r "$env:USERNAME:F"
+          ssh-keyscan ${{ secrets.IIS_SSH_HOST }} | Out-File -Append -FilePath "$sshDir\known_hosts"
+
       - name: ✅ Test SSH Connection
         shell: pwsh
         run: |
-            Write-Host "🔌 Testing SSH connection..."
-            ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} "echo '✅ SSH connection successful'" 2>&1 | Tee-Object -FilePath ssh-test.log
+          Write-Host "🔌 Testing SSH connection..."
+          ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} "echo '✅ SSH connection successful'" 2>&1 | Tee-Object -FilePath ssh-test.log
+
 
     #   - name: "📤 Deploy to Remote Server"
     #     run: |
