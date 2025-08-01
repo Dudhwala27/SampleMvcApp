@@ -1,4 +1,4 @@
-name: Build and Deploy ASP.NET Core MVC to Remote IIS
+name: Build and Deploy ASP.NET Core App to IIS via SSH
 
 on:
   push:
@@ -18,23 +18,18 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: "📦 Build and Publish"
+      - name: "📦 Restore, Build and Publish"
         run: |
           mkdir logs
-          echo "🔄 Restoring..."
+
+          echo "🔄 Restoring dependencies..."
           dotnet restore | Tee-Object -FilePath logs/restore.log
 
-          echo "🏗 Building..."
+          echo "🏗 Building project..."
           dotnet build --configuration Release | Tee-Object -FilePath logs/build.log
 
           echo "🚀 Publishing..."
           dotnet publish --configuration Release --output publish_output | Tee-Object -FilePath logs/publish.log
-
-      - name: "☁ Upload Published App"
-        uses: actions/upload-artifact@v4
-        with:
-          name: published-app
-          path: publish_output
 
       - name: "☁ Upload Build Logs"
         if: always()
@@ -43,10 +38,16 @@ jobs:
           name: build-logs
           path: logs
 
+      - name: "☁ Upload Published App"
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-app
+          path: publish_output
+
   deploy:
-    name: 🚀 Deploy to IIS
+    name: 🚀 Deploy to IIS Server via SSH
     needs: build
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: "⬇ Download Published App"
@@ -55,31 +56,31 @@ jobs:
           name: published-app
           path: publish_output
 
-      - name: "📤 Deploy to Remote IIS via PowerShell + WinRM"
-        shell: pwsh
+      - name: "📁 Setup SSH Key"
         run: |
-          $username = "${{ secrets.IIS_USERNAME }}"
-          $password = ConvertTo-SecureString "${{ secrets.IIS_PASSWORD }}" -AsPlainText -Force
-          $cred = New-Object System.Management.Automation.PSCredential($username, $password)
-          $server = "${{ secrets.IIS_SERVER }}"
-          $sitePath = "${{ secrets.IIS_SITE_PATH }}"
-          $sourcePath = Join-Path $env:GITHUB_WORKSPACE 'publish_output'
-           
-           # Allow connecting to non-domain servers
-          Set-Item WSMan:\localhost\Client\TrustedHosts -Value $server -Force
+          mkdir -p ~/.ssh
+          echo "${{ secrets.IIS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-          Write-Output "💻 Connecting to $server ..."
-          Invoke-Command -ComputerName $server -Credential $cred -ScriptBlock {
-              param ($sitePath, $sourcePath)
+      - name: "📤 Deploy to Remote Server"
+        run: |
+          echo "🧹 Cleaning target IIS folder..."
+          ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} `
+            "Remove-Item -Recurse -Force '${{ secrets.IIS_SITE_PATH }}\*'; `
+             mkdir '${{ secrets.IIS_SITE_PATH }}' -Force" 2>&1 | tee ssh-clean.log
 
-              Write-Output "🧹 Cleaning site path: $sitePath"
-              Remove-Item "$sitePath\*" -Recurse -Force -ErrorAction SilentlyContinue
+          echo "📤 Uploading files to IIS..."
+          scp -r ./publish_output/* ${{ secrets.IIS_SSH_HOST }}:"${{ secrets.IIS_SITE_PATH }}" 2>&1 | tee ssh-copy.log
 
-              Write-Output "📁 Copying files..."
-              Copy-Item -Path $sourcePath\* -Destination $sitePath -Recurse -Force
+          echo "♻ Restarting IIS..."
+          ssh ${{ secrets.IIS_SSH_HOST }} "iisreset" 2>&1 | tee ssh-restart.log
 
-              Write-Output "♻ Restarting IIS..."
-              iisreset
-
-              Write-Output "✅ Deployment complete"
-          } -ArgumentList $sitePath, $sourcePath
+      - name: "📜 Upload Deployment Logs"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-logs
+          path: |
+            ssh-clean.log
+            ssh-copy.log
+            ssh-restart.log
