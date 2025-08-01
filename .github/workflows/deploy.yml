@@ -47,7 +47,7 @@ jobs:
   deploy:
     name: 🚀 Deploy to IIS Server via SSH
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: "⬇ Download Published App"
@@ -61,27 +61,33 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.IIS_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-
-      - name: "📤 Deploy to Remote Server"
+          ssh-keyscan -p ${{ secrets.IIS_SSH_HOST }} ${{ secrets.IIS_SSH_HOST }} >> ~/.ssh/known_hosts
+      - name: ✅ Test SSH Connection
+        shell: pwsh
         run: |
-          echo "🧹 Cleaning target IIS folder..."
-          ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} `
-            "Remove-Item -Recurse -Force '${{ secrets.IIS_SITE_PATH }}\*'; `
-             mkdir '${{ secrets.IIS_SITE_PATH }}' -Force" 2>&1 | tee ssh-clean.log
+            Write-Host "🔌 Testing SSH connection..."
+            ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} "echo '✅ SSH connection successful'" 2>&1 | Tee-Object -FilePath ssh-test.log
 
-          echo "📤 Uploading files to IIS..."
-          scp -r ./publish_output/* ${{ secrets.IIS_SSH_HOST }}:"${{ secrets.IIS_SITE_PATH }}" 2>&1 | tee ssh-copy.log
+    #   - name: "📤 Deploy to Remote Server"
+    #     run: |
+    #       echo "🧹 Cleaning target IIS folder..."
+    #       ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} `
+    #         "Remove-Item -Recurse -Force '${{ secrets.IIS_SITE_PATH }}\*'; `
+    #          mkdir '${{ secrets.IIS_SITE_PATH }}' -Force" 2>&1 | tee ssh-clean.log
 
-          echo "♻ Restarting IIS..."
-          ssh ${{ secrets.IIS_SSH_HOST }} "iisreset" 2>&1 | tee ssh-restart.log
+    #       echo "📤 Uploading files to IIS..."
+    #       scp -r ./publish_output/* ${{ secrets.IIS_SSH_HOST }}:"${{ secrets.IIS_SITE_PATH }}" 2>&1 | tee ssh-copy.log
 
-      - name: "📜 Upload Deployment Logs"
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: deploy-logs
-          path: |
-            ssh-clean.log
-            ssh-copy.log
-            ssh-restart.log
+    #       echo "♻ Restarting IIS..."
+    #       ssh ${{ secrets.IIS_SSH_HOST }} "iisreset" 2>&1 | tee ssh-restart.log
+
+    #   - name: "📜 Upload Deployment Logs"
+    #     if: always()
+    #     uses: actions/upload-artifact@v4
+    #     with:
+    #       name: deploy-logs
+    #       path: |
+    #         ssh-clean.log
+    #         ssh-copy.log
+    #         ssh-restart.log
             
