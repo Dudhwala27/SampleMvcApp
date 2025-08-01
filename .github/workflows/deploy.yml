@@ -67,7 +67,7 @@ jobs:
            
            # Allow connecting to non-domain servers
           Set-Item WSMan:\localhost\Client\TrustedHosts -Value $server -Force
-          
+
           Write-Output "💻 Connecting to $server ..."
           Invoke-Command -ComputerName $server -Credential $cred -ScriptBlock {
               param ($sitePath, $sourcePath)
@@ -83,3 +83,4 @@ jobs:
 
               Write-Output "✅ Deployment complete"
           } -ArgumentList $sitePath, $sourcePath
+           
