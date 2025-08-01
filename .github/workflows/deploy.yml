@@ -6,6 +6,7 @@ on:
 
 jobs:
   build:
+    name: 🔧 Build and Publish
     runs-on: windows-latest
 
     steps:
@@ -43,6 +44,7 @@ jobs:
           path: logs
 
   deploy:
+    name: 🚀 Deploy to IIS
     needs: build
     runs-on: windows-latest
 
@@ -53,32 +55,28 @@ jobs:
           name: published-app
           path: publish_output
 
-      - name: "📤 Deploy to IIS via WinRM"
-        uses: appleboy/winrm-action@v1
-        with:
-          host: ${{ secrets.IIS_SERVER }}
-          username: ${{ secrets.IIS_USERNAME }}
-          password: ${{ secrets.IIS_PASSWORD }}
-          port: 5985
-          transport: http
-          script: |
-            Write-Output "🔐 Connecting to remote IIS server..."
-            $sitePath = "${{ secrets.IIS_SITE_PATH }}"
+      - name: "📤 Deploy to Remote IIS via PowerShell + WinRM"
+        shell: pwsh
+        run: |
+          $username = "${{ secrets.IIS_USERNAME }}"
+          $password = ConvertTo-SecureString "${{ secrets.IIS_PASSWORD }}" -AsPlainText -Force
+          $cred = New-Object System.Management.Automation.PSCredential($username, $password)
+          $server = "${{ secrets.IIS_SERVER }}"
+          $sitePath = "${{ secrets.IIS_SITE_PATH }}"
+          $sourcePath = Join-Path $env:GITHUB_WORKSPACE 'publish_output'
 
-            Write-Output "🧹 Cleaning IIS folder: $sitePath"
-            Remove-Item -Path "$sitePath\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Output "💻 Connecting to $server ..."
+          Invoke-Command -ComputerName $server -Credential $cred -ScriptBlock {
+              param ($sitePath, $sourcePath)
 
-            Write-Output "📁 Copying files..."
-            Copy-Item -Path "${{ github.workspace }}\publish_output\*" -Destination "$sitePath" -Recurse -Force
+              Write-Output "🧹 Cleaning site path: $sitePath"
+              Remove-Item "$sitePath\*" -Recurse -Force -ErrorAction SilentlyContinue
 
-            Write-Output "♻ Restarting IIS..."
-            iisreset
+              Write-Output "📁 Copying files..."
+              Copy-Item -Path $sourcePath\* -Destination $sitePath -Recurse -Force
 
-            Write-Output "✅ Deployment complete."
+              Write-Output "♻ Restarting IIS..."
+              iisreset
 
-      - name: "☁ Upload Deployment Logs"
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: deploy-logs
-          path: logs
+              Write-Output "✅ Deployment complete"
+          } -ArgumentList $sitePath, $sourcePath
