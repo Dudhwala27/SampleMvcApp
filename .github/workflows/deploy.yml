@@ -54,7 +54,7 @@ jobs:
           path: publish_output
 
       - name: "📤 Deploy to IIS via WinRM"
-        uses: appleboy/winrm-action@v1.0.2
+        uses: appleboy/winrm-action@v1
         with:
           host: ${{ secrets.IIS_SERVER }}
           username: ${{ secrets.IIS_USERNAME }}
