@@ -22,13 +22,10 @@ jobs:
       - name: 📦 Restore, Build and Publish
         run: |
           mkdir logs
-
           echo "🔄 Restoring dependencies..."
           dotnet restore | Tee-Object -FilePath logs/restore.log
-
           echo "🏗 Building project..."
           dotnet build --configuration Release | Tee-Object -FilePath logs/build.log
-
           echo "🚀 Publishing..."
           dotnet publish --configuration Release --output publish_output | Tee-Object -FilePath logs/publish.log
 
@@ -66,11 +63,33 @@ jobs:
           icacls "$sshDir\id_rsa" /inheritance:r /grant:r "$env:USERNAME:F"
           ssh-keyscan ${{ secrets.IIS_SSH_HOST }} | Out-File -Append -FilePath "$sshDir\known_hosts"
 
+      - name: 🌐 DNS Pre-check
+        shell: pwsh
+        run: |
+          Write-Host "🌐 Checking if host is resolvable..."
+          $host = "${{ secrets.IIS_SSH_HOST }}"
+          $hostname = $host.Split("@")[-1]
+          try {
+            [System.Net.Dns]::GetHostAddresses($hostname)
+            Write-Host "✅ Host resolved successfully: $hostname"
+          } catch {
+            Write-Error "❌ Failed to resolve $hostname. Please check IIS_SSH_HOST value."
+            exit 1
+          }
+
       - name: ✅ Test SSH Connection
         shell: pwsh
         run: |
           Write-Host "🔌 Testing SSH connection..."
           ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} "echo '✅ SSH connection successful'" 2>&1 | Tee-Object -FilePath ssh-test.log
+
+      - name: ☁ Upload SSH Test Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssh-test-log
+          path: ssh-test.log
+
 
 
     #   - name: "📤 Deploy to Remote Server"
