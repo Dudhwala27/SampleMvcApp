@@ -31,3 +31,10 @@ D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\refint\SampleMvcApp.dll
 D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\SampleMvcApp.pdb
 D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\SampleMvcApp.genruntimeconfig.cache
 D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\ref\SampleMvcApp.dll
+D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\SampleMvcApp.sourcelink.json
+D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\Publish\SampleMvcApp\web.config
+D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\Publish\SampleMvcApp\appsettings.Development.json
+D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\Publish\SampleMvcApp\appsettings.json
+D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\Publish\SampleMvcApp\SampleMvcApp.deps.json
+D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\Publish\SampleMvcApp\SampleMvcApp.runtimeconfig.json
+D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\Publish\SampleMvcApp\SampleMvcApp.staticwebassets.endpoints.json

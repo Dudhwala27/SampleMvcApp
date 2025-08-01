@@ -1,0 +1,64 @@
+name: Build and Deploy ASP.NET Core MVC to Remote IIS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+
+    steps:
+    # 🧾 Step 1: Checkout your code
+    - name: ✅ Checkout Code
+      uses: actions/checkout@v3
+
+    # 🛠 Step 2: Setup .NET SDK
+    - name: 🛠 Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    # 🧱 Step 3: Restore, Build and Publish your project
+    - name: 📦 Build and Publish
+      run: |
+        echo "🔄 Restoring..."
+        dotnet restore | Tee-Object -FilePath logs/restore.log
+
+        echo "🏗 Building..."
+        dotnet build --configuration Release | Tee-Object -FilePath logs/build.log
+
+        echo "🚀 Publishing..."
+        dotnet publish --configuration Release --output publish_output | Tee-Object -FilePath logs/publish.log
+
+    # 📤 Step 4: Deploy to Remote IIS Server over WinRM
+    - name: 📤 Deploy to IIS via WinRM
+      uses: appleboy/winrm-action@v1.0.2
+      with:
+        host: ${{ secrets.IIS_SERVER }}
+        username: ${{ secrets.IIS_USERNAME }}
+        password: ${{ secrets.IIS_PASSWORD }}
+        port: 5985
+        transport: http
+        script: |
+          Write-Output "🔐 Connecting to remote IIS server..."
+          $sitePath = "${{ secrets.IIS_SITE_PATH }}"
+          
+          Write-Output "🧹 Cleaning IIS folder: $sitePath"
+          Remove-Item -Path "$sitePath\*" -Recurse -Force -ErrorAction SilentlyContinue
+
+          Write-Output "📁 Copying files..."
+          Copy-Item -Path "${{ github.workspace }}\publish_output\*" -Destination "$sitePath" -Recurse -Force
+
+          Write-Output "♻ Restarting IIS..."
+          iisreset
+
+          Write-Output "✅ Deployment complete."
+
+    # 📜 Step 5: Upload Logs as Artifact
+    - name: ☁ Upload Logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-and-deploy-logs
+        path: logs

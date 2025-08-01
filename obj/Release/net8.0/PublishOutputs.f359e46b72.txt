@@ -1,0 +1,7 @@
+D:\SampleMvcApp\SampleMvcApp\Publish\SampleMvcApp\SampleMvcApp.exe
+D:\SampleMvcApp\SampleMvcApp\Publish\SampleMvcApp\appsettings.Development.json
+D:\SampleMvcApp\SampleMvcApp\Publish\SampleMvcApp\appsettings.json
+D:\SampleMvcApp\SampleMvcApp\Publish\SampleMvcApp\SampleMvcApp.dll
+D:\SampleMvcApp\SampleMvcApp\Publish\SampleMvcApp\SampleMvcApp.deps.json
+D:\SampleMvcApp\SampleMvcApp\Publish\SampleMvcApp\SampleMvcApp.runtimeconfig.json
+D:\SampleMvcApp\SampleMvcApp\Publish\SampleMvcApp\SampleMvcApp.pdb
