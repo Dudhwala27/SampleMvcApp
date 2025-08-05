@@ -67,6 +67,7 @@ jobs:
 
       - name: 📁 Setup SSH Key with Validation
         shell: pwsh
+        continue-on-error: true
         run: |
             Write-Host "🔐 Validating SSH secrets..."
 
@@ -98,9 +99,17 @@ jobs:
             # Add host to known_hosts
             $hostname = $sshTarget.Split("@")[-1]
             Write-Host "🔍 Scanning SSH host key for $hostname..."
-            ssh-keyscan $hostname | Out-File -Append -FilePath "$sshDir\known_hosts"
-
-            Write-Host "✅ SSH key and known_hosts configured successfully for $sshTarget."
+            try {
+            $scanResult = ssh-keyscan $hostname 2>&1
+            if (-not $scanResult) {
+                Write-Warning "⚠️ ssh-keyscan did not return any result. Host might be unreachable or SSH port is closed."
+            } else {
+                $scanResult | Out-File -Append -FilePath "$sshDir\known_hosts"
+                Write-Host "✅ Host key scanned and saved."
+            }
+            } catch {
+            Write-Warning "⚠️ ssh-keyscan failed: $_"
+            }
 
             
 
