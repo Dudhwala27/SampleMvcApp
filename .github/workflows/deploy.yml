@@ -98,6 +98,10 @@ jobs:
             Write-Host "📦 Compressing published output..."
             Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
 
+            Write-Host "🔎 SSH Target: $sshTarget"
+            Write-Host "📁 Remote Zip Path: $remoteZip"
+            Write-Host "📁 Remote Extract Path: $remotePath"
+
             Write-Host "📁 Ensuring remote path exists..."
             ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget `
             "powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path '${remotePath}'\""
