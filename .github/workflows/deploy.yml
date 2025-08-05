@@ -90,25 +90,45 @@ jobs:
       - name: 📦 Upload + Extract Published App
         shell: pwsh
         run: |
-            $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
-            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
-            $remotePath = "${{ secrets.IIS_SITE_PATH }}"
-            $remoteZip  = "${{ secrets.IIS_REMOTE_ZIP }}"
 
-            Write-Host "📦 Compressing published output..."
+            $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
+            $sshTarget  = "esoft@49.249.200.70"
+            $remotePath = "C:/Deploy/SampleMvcApp"
+            $remoteZip  = "$remotePath/app.zip"
+
+            Write-Host "::notice title=🔍 SSH Target::$sshTarget"
+            Write-Host "::notice title=🔍 Remote Path::$remotePath"
+            Write-Host "::notice title=🔍 Remote Zip::$remoteZip"
+
+            Write-Host "📁 Ensuring remote directory exists..."
+            $mkdirCommand = "powershell -NoProfile -Command `"if (-not (Test-Path '$remotePath')) { New-Item -ItemType Directory -Force -Path '$remotePath'; Write-Output '✅ Created: $remotePath' } else { Write-Output 'ℹ️ Already exists: $remotePath' }`""
+            ssh -vvv -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget $mkdirCommand
+
+            Write-Host "📦 Compressing app..."
             Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
 
+            Write-Host "📤 Uploading to $remoteZip"
+            scp -vvv -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "$sshTarget:$remoteZip"
+            
+            # $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
+            # $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
+            # $remotePath = "${{ secrets.IIS_SITE_PATH }}"
+            # $remoteZip  = "${{ secrets.IIS_REMOTE_ZIP }}"
 
-            Write-Host "::notice title=🔍 SSHTarget:: $sshTarget"
-            Write-Host "::notice title=🔍 RemoteZip:: $remoteZip"
-            Write-Host "::notice title=🔍 RemotePath:: $remotePath"
+            # Write-Host "📦 Compressing published output..."
+            # Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
 
-            Write-Host "📁 Ensuring remote path exists..."
-            $remoteMkdir = "powershell -NoProfile -Command `"if (-not (Test-Path '$remotePath')) { New-Item -ItemType Directory -Force -Path '$remotePath'; Write-Output '✅ Created: $remotePath' } else { Write-Output 'ℹ️ Already exists: $remotePath' }`""
-            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget $remoteMkdir
 
-            Write-Host "📤 Uploading app.zip to ${sshTarget}:${remoteZip}"
-            scp -v -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
+            # Write-Host "::notice title=🔍 SSHTarget:: $sshTarget"
+            # Write-Host "::notice title=🔍 RemoteZip:: $remoteZip"
+            # Write-Host "::notice title=🔍 RemotePath:: $remotePath"
+
+            # Write-Host "📁 Ensuring remote path exists..."
+            # $remoteMkdir = "powershell -NoProfile -Command `"if (-not (Test-Path '$remotePath')) { New-Item -ItemType Directory -Force -Path '$remotePath'; Write-Output '✅ Created: $remotePath' } else { Write-Output 'ℹ️ Already exists: $remotePath' }`""
+            # ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget $remoteMkdir
+
+            # Write-Host "📤 Uploading app.zip to ${sshTarget}:${remoteZip}"
+            # scp -v -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
 
             Write-Host "🧩 Extracting app.zip on remote server to ${remotePath}"
             $remoteCommand = @"
