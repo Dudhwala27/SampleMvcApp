@@ -136,13 +136,13 @@ jobs:
             Write-Host "📦 Compressing published output..."
             Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
 
-            Write-Host "📤 Uploading app.zip to $sshTarget:$remoteZip"
-            scp -i $sshKey -o StrictHostKeyChecking=no app.zip "$sshTarget:$remoteZip"
+            Write-Host "📤 Uploading app.zip to ${sshTarget}:${remoteZip}"
+            scp -i $sshKey -o StrictHostKeyChecking=no app.zip "${sshTarget}:${remoteZip}"
 
-            Write-Host "🧩 Extracting app.zip on remote server to $remotePath"
+            Write-Host "🧩 Extracting app.zip on remote server to ${remotePath}"
             ssh -i $sshKey -o StrictHostKeyChecking=no $sshTarget "powershell -Command `
-            \"Expand-Archive -Force '$remoteZip' -DestinationPath '$remotePath'; `
-            Remove-Item '$remoteZip'\""
+            \"Expand-Archive -Force '${remoteZip}' -DestinationPath '${remotePath}'; `
+            Remove-Item '${remoteZip}'\""
 
             Write-Host "✅ Deployment complete"
 
