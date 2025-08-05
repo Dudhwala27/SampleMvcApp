@@ -142,7 +142,7 @@ jobs:
             Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
 
             Write-Host "📤 Uploading app.zip to ${sshTarget}:${remoteZip}"
-            scp -i $sshKey -o StrictHostKeyChecking=no app.zip "${sshTarget}:${remoteZip}"
+            scp -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
 
             Write-Host "🧩 Extracting app.zip on remote server to ${remotePath}"
 
@@ -153,7 +153,7 @@ jobs:
             "@
 
             # Run the command remotely via SSH
-            ssh -i $sshKey -o StrictHostKeyChecking=no $sshTarget "powershell -NoProfile -Command `$remoteCommand"
+            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "powershell -NoProfile -Command `$remoteCommand"
 
             Write-Host "✅ Deployment complete"
 
@@ -165,7 +165,7 @@ jobs:
             $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
 
             Write-Host "🌐 Restarting IIS remotely..."
-            ssh -i $sshKey -o StrictHostKeyChecking=no $sshTarget "iisreset"
+            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "iisreset"
 
             
 
