@@ -45,48 +45,34 @@ jobs:
   deploy:
     name: 🚀 Deploy to IIS Server via SSH
     needs: build
-    runs-on: windows-latest
-    
+    runs-on: [self-hosted, iis-runner]
+
     steps:
       - name: ⬇ Download Published App
         uses: actions/download-artifact@v4
         with:
-          name: published-app
-          path: publish_output
+            name: published-app
+            path: publish_output
 
-      - name: 🧪 Show Runner IP
+      - name: 🧪 Show Runner IP (for debug)
         shell: pwsh
         run: ipconfig
 
-      - name: 🔍 Validate SSH Host
+      - name: 📁 Setup SSH Key with StrictHostKeyChecking=no
         shell: pwsh
-        run: |
-           $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
-            if (-not $sshTarget -or $sshTarget -eq '***' -or -not ($sshTarget -match ".+@.+")) {
-            Write-Error "❌ IIS_SSH_HOST is either unset, redacted, or malformed. Expected format: user@host"
-            exit 1
-            }
-
-            Write-Host "✅ Secret looks like it's set (though we can't print it because it's masked)."
-
-      - name: 📁 Setup SSH Key with Validation
-        shell: pwsh
-        continue-on-error: true
         run: |
             Write-Host "🔐 Validating SSH secrets..."
 
             $sshDir     = "$env:USERPROFILE\.ssh"
             $sshKeyPath = "$sshDir\id_rsa"
-            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"  # Expected format: user@host
+            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
             $sshKey     = "${{ secrets.IIS_SSH_KEY }}"
 
-            # Validate SSH host
             if (-not $sshTarget -or $sshTarget -eq '***' -or -not ($sshTarget -match "^[^@]+@[^@]+$")) {
-            Write-Error "❌ IIS_SSH_HOST is invalid. Expected format: username@hostname"
+            Write-Error "❌ IIS_SSH_HOST is invalid. Expected format: user@host"
             exit 1
             }
 
-            # Validate SSH key
             if (-not $sshKey -or $sshKey -eq '***') {
             Write-Error "❌ IIS_SSH_KEY is missing or masked. Please set a valid private key in GitHub Secrets."
             exit 1
@@ -97,46 +83,17 @@ jobs:
             New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
             Set-Content -Path $sshKeyPath -Value $sshKey -Force
 
-            # SKIP icacls
-            Write-Host "🔐 Skipping icacls — unnecessary for GitHub Windows runner"
-
-            # Add host to known_hosts
-            $hostname = $sshTarget.Split("@")[-1]
-            Write-Host "🔍 Scanning SSH host key for $hostname..."
-            $maxRetries = 3
-            $delaySec = 5
-            $success = $false
-
-            for ($i = 1; $i -le $maxRetries; $i++) {
-            Write-Host "🔁 Attempt ${i}: ssh-keyscan $hostname"
-            try {
-                $scanResult = & ssh-keyscan $hostname 2>&1
-                if ($scanResult -and $scanResult -notmatch "getaddrinfo|connection timed out") {
-                $scanResult | Out-File -Append -FilePath "$sshDir\known_hosts"
-                Write-Host "✅ Host key scanned and saved."
-                $success = $true
-                break
-                } else {
-                Write-Warning "⚠️ ssh-keyscan returned no usable output: $scanResult"
-                }
-            } catch {
-                Write-Warning "❌ Exception during ssh-keyscan: $_"
-            }
-            Start-Sleep -Seconds $delaySec
-            }
-
-            if (-not $success) {
-            Write-Warning "⚠️ ssh-keyscan failed after $maxRetries attempts. Proceeding with StrictHostKeyChecking=no"
-            }
+            Write-Host "🔐 SSH key saved to $sshKeyPath"
+            Write-Host "🔍 Skipping ssh-keyscan — using StrictHostKeyChecking=no"
+            exit 0
 
       - name: 📦 Upload + Extract Published App
         shell: pwsh
         run: |
-            $sshDir     = "$env:USERPROFILE\.ssh"
-            $sshKey     = "$sshDir\id_rsa"
-            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"         # e.g., deploy@192.168.0.20
-            $remotePath = "${{ secrets.IIS_SITE_PATH }}"        # e.g., C:\inetpub\wwwroot\MyMvcApp
-            $remoteZip  = "${{ secrets.IIS_REMOTE_ZIP }}"       # e.g., C:\temp\app.zip
+            $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
+            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
+            $remotePath = "${{ secrets.IIS_SITE_PATH }}"
+            $remoteZip  = "${{ secrets.IIS_REMOTE_ZIP }}"
 
             Write-Host "📦 Compressing published output..."
             Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
@@ -145,20 +102,16 @@ jobs:
             scp -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
 
             Write-Host "🧩 Extracting app.zip on remote server to ${remotePath}"
-
-            # Define remote PowerShell block as a string (safely escapes internal commands)
             $remoteCommand = @"
             Expand-Archive -Force '${remoteZip}' -DestinationPath '${remotePath}'
             Remove-Item -Path '${remoteZip}'
             "@
 
-            # Run the command remotely via SSH
             ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "powershell -NoProfile -Command `$remoteCommand"
 
             Write-Host "✅ Deployment complete"
 
-
-      - name: 🔁 Restart IIS Site (Optional)
+      - name: 🔁 Restart IIS (Optional)
         shell: pwsh
         run: |
             $sshKey = "$env:USERPROFILE\.ssh\id_rsa"
@@ -166,12 +119,6 @@ jobs:
 
             Write-Host "🌐 Restarting IIS remotely..."
             ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "iisreset"
-
-            
-
-
-
-
 
 
     #   - name: "📤 Deploy to Remote Server"
