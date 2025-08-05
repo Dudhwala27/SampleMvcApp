@@ -129,9 +129,9 @@ jobs:
         run: |
             $sshDir     = "$env:USERPROFILE\.ssh"
             $sshKey     = "$sshDir\id_rsa"
-            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
-            $remotePath = "${{ secrets.IIS_SITE_PATH }}"
-            $remoteZip  = "${{ secrets.IIS_REMOTE_ZIP }}"
+            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"         # e.g., deploy@192.168.0.20
+            $remotePath = "${{ secrets.IIS_SITE_PATH }}"        # e.g., C:\inetpub\wwwroot\MyMvcApp
+            $remoteZip  = "${{ secrets.IIS_REMOTE_ZIP }}"       # e.g., C:\temp\app.zip
 
             Write-Host "📦 Compressing published output..."
             Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
@@ -140,11 +140,18 @@ jobs:
             scp -i $sshKey -o StrictHostKeyChecking=no app.zip "${sshTarget}:${remoteZip}"
 
             Write-Host "🧩 Extracting app.zip on remote server to ${remotePath}"
-            ssh -i $sshKey -o StrictHostKeyChecking=no $sshTarget "powershell -Command `
-            \"Expand-Archive -Force '${remoteZip}' -DestinationPath '${remotePath}'; `
-            Remove-Item '${remoteZip}'\""
+
+            # Define remote PowerShell block as a string (safely escapes internal commands)
+            $remoteCommand = @"
+            Expand-Archive -Force '${remoteZip}' -DestinationPath '${remotePath}'
+            Remove-Item -Path '${remoteZip}'
+            "@
+
+            # Run the command remotely via SSH
+            ssh -i $sshKey -o StrictHostKeyChecking=no $sshTarget "powershell -NoProfile -Command `$remoteCommand"
 
             Write-Host "✅ Deployment complete"
+
 
       - name: 🔁 Restart IIS Site (Optional)
         shell: pwsh
