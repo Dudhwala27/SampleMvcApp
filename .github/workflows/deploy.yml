@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     name: 🔧 Build and Publish
-    runs-on: [self-hosted, windows]
+    runs-on: windows-latest
 
     steps:
       - name: ✅ Checkout Code
@@ -45,14 +45,18 @@ jobs:
   deploy:
     name: 🚀 Deploy to IIS Server via SSH
     needs: build
-    runs-on: windows-latest
-
+    runs-on: [self-hosted, windows]
+    
     steps:
       - name: ⬇ Download Published App
         uses: actions/download-artifact@v4
         with:
           name: published-app
           path: publish_output
+
+      - name: 🧪 Show Runner IP
+        shell: pwsh
+        run: ipconfig
 
       - name: 🔍 Validate SSH Host
         shell: pwsh
