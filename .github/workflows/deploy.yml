@@ -96,8 +96,9 @@ jobs:
             $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
             Write-Host "🔐 Granting access to: $user"
             
-            # Apply permissions without quotes
-            & icacls $sshKeyPath "/inheritance:r", "/grant:r", "$user:F"
+            # Grant access using icacls safely
+            $arguments = @("/inheritance:r", "/grant:r", "$user:F")
+            & icacls $sshKeyPath @arguments | Out-Null
 
             $hostname = $sshTarget.Split("@")[-1]
             Write-Host "🔍 Scanning SSH host key for $hostname..."
