@@ -98,12 +98,17 @@ jobs:
             Write-Host "📦 Compressing published output..."
             Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
 
+            Write-Host "📁 Ensuring remote path exists..."
+            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget `
+            "powershell -Command \"New-Item -ItemType Directory -Force -Path '${remotePath}' | Out-Null\""
+
             Write-Host "📤 Uploading app.zip to ${sshTarget}:${remoteZip}"
-            scp -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
+            scp -v -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
 
             Write-Host "🧩 Extracting app.zip on remote server to ${remotePath}"
             $remoteCommand = @"
-            Expand-Archive -Force '${remoteZip}' -DestinationPath '${remotePath}'
+            Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+            [IO.Compression.ZipFile]::ExtractToDirectory('${remoteZip}', '${remotePath}')
             Remove-Item -Path '${remoteZip}'
             "@
 
@@ -119,7 +124,7 @@ jobs:
 
             Write-Host "🌐 Restarting IIS remotely..."
             ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "iisreset"
-            
+
 
 
     #   - name: "📤 Deploy to Remote Server"
