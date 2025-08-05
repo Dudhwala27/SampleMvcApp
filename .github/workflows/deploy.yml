@@ -92,19 +92,17 @@ jobs:
             New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
             Set-Content -Path $sshKeyPath -Value $sshKey -Force
 
-            # Get full user identity (e.g., runnervm2oi6d\runneradmin)
-            $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-            Write-Host "🔐 Granting access to: $user"
-            
-            # Grant access using icacls safely
-            $arguments = @("/inheritance:r", "/grant:r", "$user:F")
-            & icacls $sshKeyPath @arguments | Out-Null
+            # SKIP icacls
+            Write-Host "🔐 Skipping icacls — unnecessary for GitHub Windows runner"
 
+            # Add host to known_hosts
             $hostname = $sshTarget.Split("@")[-1]
             Write-Host "🔍 Scanning SSH host key for $hostname..."
             ssh-keyscan $hostname | Out-File -Append -FilePath "$sshDir\known_hosts"
 
             Write-Host "✅ SSH key and known_hosts configured successfully for $sshTarget."
+
+            
 
 
 
