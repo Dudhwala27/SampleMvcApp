@@ -95,7 +95,13 @@ jobs:
             # ✅ Fully qualified user identity
             $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
             Write-Host "🔐 Granting access to: $user"
-            icacls $sshKeyPath /inheritance:r /grant:r "$user:F" | Out-Null
+            
+            # Escape backslash for icacls
+            $escapedUser = $user -replace '\\', '\\\\'
+            Write-Host "🔐 Escaped user: $escapedUser"
+
+            # Grant full control to the user
+            icacls $sshKeyPath /inheritance:r /grant:r "$escapedUser:F" | Out-Null
 
             $hostname = $sshTarget.Split("@")[-1]
             Write-Host "🔍 Scanning SSH host key for $hostname..."
