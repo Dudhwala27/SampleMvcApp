@@ -98,9 +98,10 @@ jobs:
             Write-Host "📦 Compressing published output..."
             Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
 
-            Write-Host "🔎 SSH Target: $sshTarget"
-            Write-Host "📁 Remote Zip Path: $remoteZip"
-            Write-Host "📁 Remote Extract Path: $remotePath"
+
+            Write-Host "::notice title=🔍 SSHTarget:: $sshTarget"
+            Write-Host "::notice title=🔍 RemoteZip:: $remoteZip"
+            Write-Host "::notice title=🔍 RemotePath:: $remotePath"
 
             Write-Host "📁 Ensuring remote path exists..."
             $remoteMkdir = "powershell -NoProfile -Command `"if (-not (Test-Path '$remotePath')) { New-Item -ItemType Directory -Force -Path '$remotePath'; Write-Output '✅ Created: $remotePath' } else { Write-Output 'ℹ️ Already exists: $remotePath' }`""
