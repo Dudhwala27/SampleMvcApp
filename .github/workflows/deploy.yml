@@ -103,8 +103,8 @@ jobs:
             Write-Host "📁 Remote Extract Path: $remotePath"
 
             Write-Host "📁 Ensuring remote path exists..."
-            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget `
-            "powershell -NoProfile -Command \"if (-not (Test-Path '${remotePath}')) { New-Item -ItemType Directory -Force -Path '${remotePath}'; Write-Output '✅ Created: ${remotePath}' } else { Write-Output 'ℹ️ Already exists: ${remotePath}' }\""
+            $remoteMkdir = "powershell -NoProfile -Command `"if (-not (Test-Path '$remotePath')) { New-Item -ItemType Directory -Force -Path '$remotePath'; Write-Output '✅ Created: $remotePath' } else { Write-Output 'ℹ️ Already exists: $remotePath' }`""
+            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget $remoteMkdir
 
             Write-Host "📤 Uploading app.zip to ${sshTarget}:${remoteZip}"
             scp -v -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
@@ -112,10 +112,9 @@ jobs:
             Write-Host "🧩 Extracting app.zip on remote server to ${remotePath}"
             $remoteCommand = @"
             Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
-            [IO.Compression.ZipFile]::ExtractToDirectory('${remoteZip}', '${remotePath}')
-            Remove-Item -Path '${remoteZip}'
+            [IO.Compression.ZipFile]::ExtractToDirectory('$remoteZip', '$remotePath')
+            Remove-Item -Path '$remoteZip'
             "@
-
             ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "powershell -NoProfile -Command `$remoteCommand"
 
             Write-Host "✅ Deployment complete"
