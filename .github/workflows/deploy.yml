@@ -57,12 +57,13 @@ jobs:
       - name: 🔍 Validate SSH Host
         shell: pwsh
         run: |
-            $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
-            if (-not $sshTarget -or -not ($sshTarget -match ".+@.+")) {
-            Write-Error "❌ IIS_SSH_HOST is either empty or malformed. Expected format: user@host"
+           $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
+            if (-not $sshTarget -or $sshTarget -eq '***' -or -not ($sshTarget -match ".+@.+")) {
+            Write-Error "❌ IIS_SSH_HOST is either unset, redacted, or malformed. Expected format: user@host"
             exit 1
             }
-            Write-Host "✅ SSH host format looks good: $sshTarget"
+
+            Write-Host "✅ Secret looks like it's set (though we can't print it because it's masked)."
 
 
 
