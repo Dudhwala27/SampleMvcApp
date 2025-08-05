@@ -89,28 +89,17 @@ jobs:
 
             Write-Host "✅ Secrets look valid. Proceeding with SSH key setup..."
 
-            # Create .ssh folder
             New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
-
-            # Save SSH key
             Set-Content -Path $sshKeyPath -Value $sshKey -Force
 
-            # Set proper permissions on SSH key
-            $user = $env:USERNAME
-            if (-not $user -or $user -eq "") {
+            # ✅ Fully qualified user identity
             $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-            }
-            Write-Host "🔐 Granting read access to $user for SSH key..."
+            Write-Host "🔐 Granting access to: $user"
             icacls $sshKeyPath /inheritance:r /grant:r "$user:F" | Out-Null
 
-            # Add host to known_hosts
             $hostname = $sshTarget.Split("@")[-1]
             Write-Host "🔍 Scanning SSH host key for $hostname..."
             ssh-keyscan $hostname | Out-File -Append -FilePath "$sshDir\known_hosts"
-
-            # Optional: Add a tag file (do NOT append to private key)
-            $metaFile = "$sshKeyPath.meta"
-            Set-Content -Path $metaFile -Value "For: $sshTarget"
 
             Write-Host "✅ SSH key and known_hosts configured successfully for $sshTarget."
 
