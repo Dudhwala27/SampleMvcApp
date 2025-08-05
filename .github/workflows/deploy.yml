@@ -54,42 +54,17 @@ jobs:
           name: published-app
           path: publish_output
 
-      - name: 📁 Setup SSH Key (Windows PowerShell)
+      - name: 🔍 Validate SSH Host
         shell: pwsh
         run: |
-          $sshDir = "$env:USERPROFILE\.ssh"
-          New-Item -ItemType Directory -Force -Path $sshDir
-          Set-Content -Path "$sshDir\id_rsa" -Value "${{ secrets.IIS_SSH_KEY }}"
-          icacls "$sshDir\id_rsa" /inheritance:r /grant:r "$env:USERNAME:F"
-          ssh-keyscan ${{ secrets.IIS_SSH_HOST }} | Out-File -Append -FilePath "$sshDir\known_hosts"
-
-      - name: 🌐 DNS Pre-check
-        shell: pwsh
-        run: |
-          Write-Host "🌐 Checking if host is resolvable..."
-          $host = "${{ secrets.IIS_SSH_HOST }}"
-          $hostname = $host.Split("@")[-1]
-          try {
-            [System.Net.Dns]::GetHostAddresses($hostname)
-            Write-Host "✅ Host resolved successfully: $hostname"
-          } catch {
-            Write-Error "❌ Failed to resolve $hostname. Please check IIS_SSH_HOST value."
+            $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
+            if (-not $sshTarget -or -not ($sshTarget -match ".+@.+")) {
+            Write-Error "❌ IIS_SSH_HOST is either empty or malformed. Expected format: user@host"
             exit 1
-          }
+            }
+            Write-Host "✅ SSH host format looks good: $sshTarget"
 
-      - name: ✅ Test SSH Connection
-        shell: pwsh
-        run: |
-          Write-Host "🔌 Testing SSH connection..."
-          ssh -o StrictHostKeyChecking=no ${{ secrets.IIS_SSH_HOST }} "echo '✅ SSH connection successful'" 2>&1 | Tee-Object -FilePath ssh-test.log
 
-      - name: ☁ Upload SSH Test Log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ssh-test-log
-          path: ssh-test.log
-          
 
 
 
