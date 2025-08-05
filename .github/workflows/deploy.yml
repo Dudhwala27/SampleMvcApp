@@ -124,6 +124,37 @@ jobs:
             Write-Warning "⚠️ ssh-keyscan failed: $_"
             }
 
+      - name: 📦 Upload + Extract Published App
+        shell: pwsh
+        run: |
+            $sshDir     = "$env:USERPROFILE\.ssh"
+            $sshKey     = "$sshDir\id_rsa"
+            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
+            $remotePath = "${{ secrets.IIS_SITE_PATH }}"
+            $remoteZip  = "${{ secrets.IIS_REMOTE_ZIP }}"
+
+            Write-Host "📦 Compressing published output..."
+            Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
+
+            Write-Host "📤 Uploading app.zip to $sshTarget:$remoteZip"
+            scp -i $sshKey -o StrictHostKeyChecking=no app.zip "$sshTarget:$remoteZip"
+
+            Write-Host "🧩 Extracting app.zip on remote server to $remotePath"
+            ssh -i $sshKey -o StrictHostKeyChecking=no $sshTarget "powershell -Command `
+            \"Expand-Archive -Force '$remoteZip' -DestinationPath '$remotePath'; `
+            Remove-Item '$remoteZip'\""
+
+            Write-Host "✅ Deployment complete"
+
+      - name: 🔁 Restart IIS Site (Optional)
+        shell: pwsh
+        run: |
+            $sshKey = "$env:USERPROFILE\.ssh\id_rsa"
+            $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
+
+            Write-Host "🌐 Restarting IIS remotely..."
+            ssh -i $sshKey -o StrictHostKeyChecking=no $sshTarget "iisreset"
+
             
 
 
