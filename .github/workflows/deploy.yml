@@ -92,23 +92,40 @@ jobs:
         run: |
 
             $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
-            $sshTarget  = "esoft@49.249.200.70"
+            $sshTarget  = "esoft@49.249.200.70"  # Replace with your actual user@publicIP or use ${{ secrets.IIS_SSH_HOST }}
             $remotePath = "C:/Deploy/SampleMvcApp"
             $remoteZip  = "$remotePath/app.zip"
 
+            # Logging paths (will bypass GitHub masking)
             Write-Host "::notice title=🔍 SSH Target::$sshTarget"
             Write-Host "::notice title=🔍 Remote Path::$remotePath"
             Write-Host "::notice title=🔍 Remote Zip::$remoteZip"
 
+            # Create remote path if needed
             Write-Host "📁 Ensuring remote directory exists..."
             $mkdirCommand = "powershell -NoProfile -Command `"if (-not (Test-Path '$remotePath')) { New-Item -ItemType Directory -Force -Path '$remotePath'; Write-Output '✅ Created: $remotePath' } else { Write-Output 'ℹ️ Already exists: $remotePath' }`""
-            ssh -vvv -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget $mkdirCommand
+            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget $mkdirCommand
 
+            # Compress local output
             Write-Host "📦 Compressing app..."
             Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
 
-            Write-Host "📤 Uploading to $remoteZip"
-            scp -vvv -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "$sshTarget:$remoteZip"
+            # Upload the archive with verbose output
+            Write-Host "📤 Uploading app.zip to $remoteZip"
+            scp -vvv -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
+
+            # Extract on remote using .NET API for compatibility
+            Write-Host "🧩 Extracting app.zip on remote server to $remotePath"
+            $remoteCommand = @"
+            Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+            [IO.Compression.ZipFile]::ExtractToDirectory('$remoteZip', '$remotePath')
+            Remove-Item -Path '$remoteZip'
+            "@
+
+            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget `
+            "powershell -NoProfile -ExecutionPolicy Bypass -Command `$remoteCommand"
+
+            Write-Host "✅ Deployment complete"
             
             # $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
             # $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
@@ -130,15 +147,15 @@ jobs:
             # Write-Host "📤 Uploading app.zip to ${sshTarget}:${remoteZip}"
             # scp -v -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
 
-            Write-Host "🧩 Extracting app.zip on remote server to ${remotePath}"
-            $remoteCommand = @"
-            Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
-            [IO.Compression.ZipFile]::ExtractToDirectory('$remoteZip', '$remotePath')
-            Remove-Item -Path '$remoteZip'
-            "@
-            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "powershell -NoProfile -Command `$remoteCommand"
+            # Write-Host "🧩 Extracting app.zip on remote server to ${remotePath}"
+            # $remoteCommand = @"
+            # Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+            # [IO.Compression.ZipFile]::ExtractToDirectory('$remoteZip', '$remotePath')
+            # Remove-Item -Path '$remoteZip'
+            # "@
+            # ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "powershell -NoProfile -Command `$remoteCommand"
 
-            Write-Host "✅ Deployment complete"
+            # Write-Host "✅ Deployment complete"
 
       - name: 🔁 Restart IIS (Optional)
         shell: pwsh
