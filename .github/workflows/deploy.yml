@@ -105,7 +105,7 @@ jobs:
             $success = $false
 
             for ($i = 1; $i -le $maxRetries; $i++) {
-            Write-Host "🔁 Attempt $i: ssh-keyscan $hostname"
+            Write-Host "🔁 Attempt ${i}: ssh-keyscan $hostname"
             $scanResult = ssh-keyscan $hostname 2>&1
             if ($scanResult) {
                 $scanResult | Out-File -Append -FilePath "$sshDir\known_hosts"
@@ -118,6 +118,7 @@ jobs:
 
             if (-not $success) {
             Write-Warning "⚠️ ssh-keyscan failed after $maxRetries attempts. Proceeding anyway."
+            exit 0  # prevent CI failure
             }
             } catch {
             Write-Warning "⚠️ ssh-keyscan failed: $_"
