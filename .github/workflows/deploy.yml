@@ -65,6 +65,41 @@ jobs:
 
             Write-Host "✅ Secret looks like it's set (though we can't print it because it's masked)."
 
+      - name: 📁 Setup SSH Key with Validation
+        shell: pwsh
+        run: |
+            Write-Host "🔐 Validating SSH secrets..."
+
+            $sshDir     = "$env:USERPROFILE\.ssh"
+            $sshKeyPath = "$sshDir\id_rsa"
+            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
+            $sshKey     = "${{ secrets.IIS_SSH_KEY }}"
+
+            # Validate secrets
+            if (-not $sshTarget -or $sshTarget -eq '***' -or -not ($sshTarget -match "^[^@]+@[^@]+$")) {
+            Write-Error "❌ IIS_SSH_HOST is not set correctly. Expected format: user@host"
+            exit 1
+            }
+
+            if (-not $sshKey -or $sshKey -eq '***') {
+            Write-Error "❌ IIS_SSH_KEY is missing or masked. Please set the private key in GitHub secrets."
+            exit 1
+            }
+
+            Write-Host "✅ Secrets look valid. Proceeding with SSH key setup..."
+
+            # Setup SSH directory and key
+            New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+            Set-Content -Path $sshKeyPath -Value $sshKey -Force
+            icacls $sshKeyPath /inheritance:r /grant:r "$env:USERNAME:F" | Out-Null
+
+            # Extract hostname and update known_hosts
+            $hostname = $sshTarget.Split("@")[-1]
+            Write-Host "🔍 Scanning SSH host key for $hostname..."
+            ssh-keyscan $hostname | Out-File -Append -FilePath "$sshDir\known_hosts"
+
+            Write-Host "✅ SSH key and known_hosts configured successfully."
+
 
 
 
