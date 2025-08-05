@@ -100,7 +100,7 @@ jobs:
 
             Write-Host "📁 Ensuring remote path exists..."
             ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget `
-            "powershell -Command \"New-Item -ItemType Directory -Force -Path '${remotePath}' | Out-Null\""
+            "powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path '${remotePath}'\""
 
             Write-Host "📤 Uploading app.zip to ${sshTarget}:${remoteZip}"
             scp -v -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
