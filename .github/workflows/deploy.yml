@@ -45,7 +45,7 @@ jobs:
   deploy:
     name: 🚀 Deploy to IIS Server via SSH
     needs: build
-    runs-on: [self-hosted, iis-runner]
+    runs-on: windows-latest
 
     steps:
       - name: ⬇ Download Published App
