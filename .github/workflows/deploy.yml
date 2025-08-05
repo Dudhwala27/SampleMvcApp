@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     name: 🔧 Build and Publish
-    runs-on: windows-latest
+    runs-on: [self-hosted, windows]
 
     steps:
       - name: ✅ Checkout Code
