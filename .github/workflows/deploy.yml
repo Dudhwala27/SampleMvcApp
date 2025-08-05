@@ -97,7 +97,7 @@ jobs:
             Write-Host "🔐 Granting access to: $user"
             
             # Apply permissions without quotes
-            icacls $sshKeyPath /inheritance:r /grant:r "$user:F" | Out-Null
+            & icacls $sshKeyPath "/inheritance:r", "/grant:r", "$user:F"
 
             $hostname = $sshTarget.Split("@")[-1]
             Write-Host "🔍 Scanning SSH host key for $hostname..."
