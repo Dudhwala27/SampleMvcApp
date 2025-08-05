@@ -66,54 +66,54 @@ jobs:
             Write-Host "✅ Secret looks like it's set (though we can't print it because it's masked)."
 
       - name: 📁 Setup SSH Key with Validation
-            shell: pwsh
-            run: |
-                Write-Host "🔐 Validating SSH secrets..."
+        shell: pwsh
+        run: |
+            Write-Host "🔐 Validating SSH secrets..."
 
-                $sshDir     = "$env:USERPROFILE\.ssh"
-                $sshKeyPath = "$sshDir\id_rsa"
-                $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"  # Expected format: user@host
-                $sshKey     = "${{ secrets.IIS_SSH_KEY }}"
+            $sshDir     = "$env:USERPROFILE\.ssh"
+            $sshKeyPath = "$sshDir\id_rsa"
+            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"  # Expected format: user@host
+            $sshKey     = "${{ secrets.IIS_SSH_KEY }}"
 
-                # Validate SSH host
-                if (-not $sshTarget -or $sshTarget -eq '***' -or -not ($sshTarget -match "^[^@]+@[^@]+$")) {
-                Write-Error "❌ IIS_SSH_HOST is invalid. Expected format: username@hostname"
-                exit 1
-                }
+            # Validate SSH host
+            if (-not $sshTarget -or $sshTarget -eq '***' -or -not ($sshTarget -match "^[^@]+@[^@]+$")) {
+            Write-Error "❌ IIS_SSH_HOST is invalid. Expected format: username@hostname"
+            exit 1
+            }
 
-                # Validate SSH key
-                if (-not $sshKey -or $sshKey -eq '***') {
-                Write-Error "❌ IIS_SSH_KEY is missing or masked. Please set a valid private key in GitHub Secrets."
-                exit 1
-                }
+            # Validate SSH key
+            if (-not $sshKey -or $sshKey -eq '***') {
+            Write-Error "❌ IIS_SSH_KEY is missing or masked. Please set a valid private key in GitHub Secrets."
+            exit 1
+            }
 
-                Write-Host "✅ Secrets look valid. Proceeding with SSH key setup..."
+            Write-Host "✅ Secrets look valid. Proceeding with SSH key setup..."
 
-                # Create .ssh folder
-                New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+            # Create .ssh folder
+            New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
 
-                # Save SSH key
-                Set-Content -Path $sshKeyPath -Value $sshKey -Force
+            # Save SSH key
+            Set-Content -Path $sshKeyPath -Value $sshKey -Force
 
-                # Set proper permissions on SSH key
-                $user = $env:USERNAME
-                if (-not $user -or $user -eq "") {
-                $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-                }
-                Write-Host "🔐 Granting read access to $user for SSH key..."
-                icacls $sshKeyPath /inheritance:r /grant:r "$user:F" | Out-Null
+            # Set proper permissions on SSH key
+            $user = $env:USERNAME
+            if (-not $user -or $user -eq "") {
+            $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+            }
+            Write-Host "🔐 Granting read access to $user for SSH key..."
+            icacls $sshKeyPath /inheritance:r /grant:r "$user:F" | Out-Null
 
-                # Add host to known_hosts
-                $hostname = $sshTarget.Split("@")[-1]
-                Write-Host "🔍 Scanning SSH host key for $hostname..."
-                ssh-keyscan $hostname | Out-File -Append -FilePath "$sshDir\known_hosts"
+            # Add host to known_hosts
+            $hostname = $sshTarget.Split("@")[-1]
+            Write-Host "🔍 Scanning SSH host key for $hostname..."
+            ssh-keyscan $hostname | Out-File -Append -FilePath "$sshDir\known_hosts"
 
-                # Optional: Add a tag file (do NOT append to private key)
-                $metaFile = "$sshKeyPath.meta"
-                Set-Content -Path $metaFile -Value "For: $sshTarget"
+            # Optional: Add a tag file (do NOT append to private key)
+            $metaFile = "$sshKeyPath.meta"
+            Set-Content -Path $metaFile -Value "For: $sshTarget"
 
-                Write-Host "✅ SSH key and known_hosts configured successfully for $sshTarget."
-                
+            Write-Host "✅ SSH key and known_hosts configured successfully for $sshTarget."
+
 
 
 
