@@ -91,12 +91,13 @@ jobs:
         shell: pwsh
         run: |
 
-            $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
+            $sshKey     = ${{ secrets.IIS_SSH_KEY }}
             $sshTarget  = "esoft@49.249.200.70"  # Replace with your actual user@publicIP or use ${{ secrets.IIS_SSH_HOST }}
             $remotePath = "C:/Deploy/SampleMvcApp"
             $remoteZip  = "$remotePath/app.zip"
 
             # Logging paths (will bypass GitHub masking)
+            Write-Host "::notice title=🔍 SSH Key::$sshKey"
             Write-Host "::notice title=🔍 SSH Target::$sshTarget"
             Write-Host "::notice title=🔍 Remote Path::$remotePath"
             Write-Host "::notice title=🔍 Remote Zip::$remoteZip"
@@ -126,7 +127,7 @@ jobs:
             "powershell -NoProfile -ExecutionPolicy Bypass -Command `$remoteCommand"
 
             Write-Host "✅ Deployment complete"
-            
+
 
             
             # $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
