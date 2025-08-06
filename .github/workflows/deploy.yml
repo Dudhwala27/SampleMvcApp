@@ -91,10 +91,15 @@ jobs:
         shell: pwsh
         run: |
 
-            $sshKey     = ${{ secrets.IIS_SSH_KEY }}
-            $sshTarget  = "esoft@49.249.200.70"  # Replace with your actual user@publicIP or use ${{ secrets.IIS_SSH_HOST }}
+            $sshDir     = "$env:USERPROFILE\.ssh"
+            $sshKeyPath = "$sshDir\id_rsa"
+            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"  # e.g., deploy@49.249.200.70
             $remotePath = "C:/Deploy/SampleMvcApp"
             $remoteZip  = "$remotePath/app.zip"
+
+            # Save SSH key
+            New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+            Set-Content -Path $sshKeyPath -Value "${{ secrets.IIS_SSH_KEY }}" -Force
 
             # Logging paths (will bypass GitHub masking)
             Write-Host "::notice title=🔍 SSH Key::$sshKey"
