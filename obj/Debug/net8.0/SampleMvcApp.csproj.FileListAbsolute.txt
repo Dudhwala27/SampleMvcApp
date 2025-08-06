@@ -1,7 +1,6 @@
 D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\appsettings.Development.json
 D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\appsettings.json
 D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\SampleMvcApp.staticwebassets.runtime.json
-D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\SampleMvcApp.staticwebassets.endpoints.json
 D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\SampleMvcApp.exe
 D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\SampleMvcApp.deps.json
 D:\SampleMvcApp\SampleMvcApp\bin\Debug\net8.0\SampleMvcApp.runtimeconfig.json
@@ -19,9 +18,7 @@ D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\scopedcss\bundle\SampleMvcApp.styl
 D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\scopedcss\projectbundle\SampleMvcApp.bundle.scp.css
 D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\staticwebassets.build.json
 D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\staticwebassets.development.json
-D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\staticwebassets.build.endpoints.json
 D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\staticwebassets\msbuild.SampleMvcApp.Microsoft.AspNetCore.StaticWebAssets.props
-D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\staticwebassets\msbuild.SampleMvcApp.Microsoft.AspNetCore.StaticWebAssetEndpoints.props
 D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\staticwebassets\msbuild.build.SampleMvcApp.props
 D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\staticwebassets\msbuild.buildMultiTargeting.SampleMvcApp.props
 D:\SampleMvcApp\SampleMvcApp\obj\Debug\net8.0\staticwebassets\msbuild.buildTransitive.SampleMvcApp.props

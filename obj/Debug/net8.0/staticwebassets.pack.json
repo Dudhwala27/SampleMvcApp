@@ -2,7 +2,7 @@
   "Files": [
     {
       "Id": "D:\\SampleMvcApp\\SampleMvcApp\\obj\\Debug\\net8.0\\scopedcss\\projectbundle\\SampleMvcApp.bundle.scp.css",
-      "PackagePath": "staticwebassets\\SampleMvcApp.wb74sj5ovx.bundle.scp.css"
+      "PackagePath": "staticwebassets\\SampleMvcApp.bundle.scp.css"
     },
     {
       "Id": "D:\\SampleMvcApp\\SampleMvcApp\\wwwroot\\css\\site.css",
@@ -255,10 +255,6 @@
     {
       "Id": "D:\\SampleMvcApp\\SampleMvcApp\\wwwroot\\lib\\jquery\\dist\\jquery.slim.min.map",
       "PackagePath": "staticwebassets\\lib\\jquery\\dist\\jquery.slim.min.map"
-    },
-    {
-      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.SampleMvcApp.Microsoft.AspNetCore.StaticWebAssetEndpoints.props",
-      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssetEndpoints.props"
     },
     {
       "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.SampleMvcApp.Microsoft.AspNetCore.StaticWebAssets.props",
