@@ -43,95 +43,61 @@ jobs:
           path: publish_output
 
   deploy:
-    name: 🚀 Deploy to IIS Server via SSH
-    needs: build
-    runs-on: windows-latest
+  name: 🚀 Deploy to IIS Server via SSH
+  needs: build
+  runs-on: windows-latest
 
-    steps:
-      - name: ⬇ Download Published App
-        uses: actions/download-artifact@v4
-        with:
-            name: published-app
-            path: publish_output
+  steps:
+    - name: ⬇ Download Published App
+      uses: actions/download-artifact@v4
+      with:
+        name: published-app
+        path: publish_output
 
-      - name: 🧪 Show Runner IP (for debug)
-        shell: pwsh
-        run: ipconfig
+    - name: 🔐 Setup SSH Key and Variables
+      shell: pwsh
+      run: |
+        $sshDir     = "$env:USERPROFILE\.ssh"
+        $sshKeyPath = "$sshDir\id_rsa"
+        $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"             # e.g. deploy@49.249.200.70
+        $remotePath = "C:/Deploy/SampleMvcApp"                  # Remote deploy directory
+        $remoteZip  = "$remotePath/app.zip"
 
-      - name: 📁 Setup SSH Key with StrictHostKeyChecking=no
-        shell: pwsh
-        run: |
-            Write-Host "🔐 Validating SSH secrets..."
+        # Logging
+        Write-Host "::notice title=🔐 SSH KeyPath::$sshKeyPath"
+        Write-Host "::notice title=🔍 SSH Target::$sshTarget"
+        Write-Host "::notice title=📁 Remote Path::$remotePath"
+        Write-Host "::notice title=📦 Remote Zip::$remoteZip"
 
-            $sshDir     = "$env:USERPROFILE\.ssh"
-            $sshKeyPath = "$sshDir\id_rsa"
-            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
-            $sshKey     = "${{ secrets.IIS_SSH_KEY }}"
+        # Save private key
+        New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+        Set-Content -Path $sshKeyPath -Value "${{ secrets.IIS_SSH_KEY }}" -Force
 
-            if (-not $sshTarget -or $sshTarget -eq '***' -or -not ($sshTarget -match "^[^@]+@[^@]+$")) {
-            Write-Error "❌ IIS_SSH_HOST is invalid. Expected format: user@host"
-            exit 1
-            }
+        # Create remote folder if needed
+        Write-Host "📁 Ensuring remote directory exists..."
+        $mkdirCommand = "powershell -NoProfile -Command `"New-Item -ItemType Directory -Force -Path '$remotePath'`""
+        ssh -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget $mkdirCommand
 
-            if (-not $sshKey -or $sshKey -eq '***') {
-            Write-Error "❌ IIS_SSH_KEY is missing or masked. Please set a valid private key in GitHub Secrets."
-            exit 1
-            }
+        # Compress published app
+        Write-Host "📦 Compressing app.zip from publish_output..."
+        Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
 
-            Write-Host "✅ Secrets look valid. Proceeding with SSH key setup..."
+        # Upload via SCP
+        Write-Host "📤 Uploading app.zip to $remoteZip"
+        scp -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
 
-            New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
-            Set-Content -Path $sshKeyPath -Value $sshKey -Force
+        # Extract and clean up remotely
+        Write-Host "🧩 Extracting app.zip on remote server to $remotePath"
+        $remoteCommand = @"
+        Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+        [IO.Compression.ZipFile]::ExtractToDirectory('$remoteZip', '$remotePath')
+        Remove-Item -Path '$remoteZip'
+        "@
 
-            Write-Host "🔐 SSH key saved to $sshKeyPath"
-            Write-Host "🔍 Skipping ssh-keyscan — using StrictHostKeyChecking=no"
-            exit 0
+        ssh -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "powershell -NoProfile -ExecutionPolicy Bypass -Command `$remoteCommand"
 
-      - name: 📦 Upload + Extract Published App
-        shell: pwsh
-        run: |
+        Write-Host "✅ Deployment complete"
 
-            $sshDir     = "$env:USERPROFILE\.ssh"
-            $sshKeyPath = "$sshDir\id_rsa"
-            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"  # e.g., deploy@49.249.200.70
-            $remotePath = "C:/Deploy/SampleMvcApp"
-            $remoteZip  = "$remotePath/app.zip"
-
-            # Save SSH key
-            New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
-            Set-Content -Path $sshKeyPath -Value "${{ secrets.IIS_SSH_KEY }}" -Force
-
-            # Logging paths (will bypass GitHub masking)
-            Write-Host "::notice title=🔍 SSH Key::$sshKey"
-            Write-Host "::notice title=🔍 SSH Target::$sshTarget"
-            Write-Host "::notice title=🔍 Remote Path::$remotePath"
-            Write-Host "::notice title=🔍 Remote Zip::$remoteZip"
-
-            # Create remote path if needed
-            Write-Host "📁 Ensuring remote directory exists..."
-            $mkdirCommand = "powershell -NoProfile -Command `"if (-not (Test-Path '$remotePath')) { New-Item -ItemType Directory -Force -Path '$remotePath'; Write-Output '✅ Created: $remotePath' } else { Write-Output 'ℹ️ Already exists: $remotePath' }`""
-            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget $mkdirCommand
-
-            # Compress local output
-            Write-Host "📦 Compressing app..."
-            Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
-
-            # Upload the archive with verbose output
-            Write-Host "📤 Uploading app.zip to $remoteZip"
-            scp -vvv -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
-
-            # Extract on remote using .NET API for compatibility
-            Write-Host "🧩 Extracting app.zip on remote server to $remotePath"
-            $remoteCommand = @"
-            Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
-            [IO.Compression.ZipFile]::ExtractToDirectory('$remoteZip', '$remotePath')
-            Remove-Item -Path '$remoteZip'
-            "@
-
-            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget `
-            "powershell -NoProfile -ExecutionPolicy Bypass -Command `$remoteCommand"
-
-            Write-Host "✅ Deployment complete"
 
 
             
