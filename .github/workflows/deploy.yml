@@ -43,20 +43,20 @@ jobs:
           path: publish_output
 
   deploy:
-  name: 🚀 Deploy to IIS Server via SSH
-  needs: build
-  runs-on: windows-latest
+    name: 🚀 Deploy to IIS Server via SSH
+    needs: build
+    runs-on: windows-latest
 
-  steps:
-    - name: ⬇ Download Published App
-      uses: actions/download-artifact@v4
-      with:
-        name: published-app
-        path: publish_output
+    steps:
+      - name: ⬇ Download Published App
+        uses: actions/download-artifact@v4
+        with:
+            name: published-app
+            path: publish_output
 
-    - name: 🔐 Setup SSH Key and Variables
-      shell: pwsh
-      run: |
+      - name: 🔐 Setup SSH Key and Variables
+        shell: pwsh
+        run: |
             $sshDir     = "$env:USERPROFILE\.ssh"
             $sshKeyPath = "$sshDir\id_rsa"
             $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"             # e.g. deploy@49.249.200.70
@@ -97,6 +97,15 @@ jobs:
             ssh -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "powershell -NoProfile -ExecutionPolicy Bypass -Command `$remoteCommand"
 
             Write-Host "✅ Deployment complete"
+
+      - name: 🔁 Restart IIS (Optional)
+        shell: pwsh
+        run: |
+            $sshKey = "$env:USERPROFILE\.ssh\id_rsa"
+            $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
+
+            Write-Host "🌐 Restarting IIS remotely..."
+            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "iisreset"
    
             # $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
             # $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
@@ -128,14 +137,7 @@ jobs:
 
             # Write-Host "✅ Deployment complete"
 
-      - name: 🔁 Restart IIS (Optional)
-        shell: pwsh
-        run: |
-            $sshKey = "$env:USERPROFILE\.ssh\id_rsa"
-            $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
-
-            Write-Host "🌐 Restarting IIS remotely..."
-            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "iisreset"
+            
 
 
 
