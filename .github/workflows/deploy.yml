@@ -54,6 +54,18 @@ jobs:
             name: published-app
             path: publish_output
 
+      - name: 🔐 Setup SSH Key
+        shell: pwsh
+        run: |
+            $sshDir     = "$env:USERPROFILE\.ssh"
+            $sshKeyPath = "$sshDir\id_rsa"
+            $sshKey     = "${{ secrets.IIS_SSH_KEY }}"
+
+            New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+            Set-Content -Path $sshKeyPath -Value $sshKey -Force
+
+            Write-Host "::notice title=SSH Key Path::$sshKeyPath"      
+
       - name: 🔐 Setup SSH Key and Variables
         shell: pwsh
         run: |
@@ -97,7 +109,7 @@ jobs:
             ssh -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "powershell -NoProfile -ExecutionPolicy Bypass -Command `$remoteCommand"
 
             Write-Host "✅ Deployment complete"
-            
+
 
       - name: 🔁 Restart IIS (Optional)
         shell: pwsh
