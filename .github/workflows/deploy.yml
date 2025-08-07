@@ -82,7 +82,6 @@ jobs:
               $sshTarget = "${{ secrets.IIS_SSH_HOST }}"  # e.g. deploy@49.249.200.70
               ssh -v -i $sshKeyPath -o StrictHostKeyChecking=no $sshTarget "echo '✅ SSH connection successful!'"
               
-s
 
 
 
