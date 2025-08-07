@@ -68,12 +68,14 @@ jobs:
           [IO.File]::WriteAllText($sshKeyPath, $sshKey)
 
           Write-Host "🔒 Setting file permissions on SSH key..."
-          $icaclsResult = icacls $sshKeyPath /inheritance:r /grant:r "$env:USERNAME:F"
+          $CurrentUser = whoami
+          Write-Host "👤 Granting full control to user: $CurrentUser"
+          $icaclsResult = icacls $sshKeyPath /inheritance:r /grant:r "$CurrentUser:F"
           Write-Host "🔐 icacls output:"
           Write-Output $icaclsResult
 
           Write-Host "::notice title=🔐 SSH Key Path::$sshKeyPath"
-          Write-Host "::notice title=👤 Current User::$env:USERNAME"
+          Write-Host "::notice title=👤 Current User::$CurrentUser"
           Write-Host "::notice title=📁 SSH Directory Exists::$(Test-Path $sshDir)"
           Write-Host "::notice title=🗝️ SSH Key File Exists::$(Test-Path $sshKeyPath)"   
 
@@ -130,7 +132,7 @@ jobs:
 
       #       Write-Host "🌐 Restarting IIS remotely..."
       #       ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "iisreset"
-   
+  
             # $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
             # $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
             # $remotePath = "${{ secrets.IIS_SITE_PATH }}"
