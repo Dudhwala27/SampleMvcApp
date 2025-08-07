@@ -54,30 +54,33 @@ jobs:
             name: published-app
             path: publish_output
 
-      - name: 🔐 Setup SSH Key with Logging
+      - name: 🔐 Setup SSH Key (No icacls)
         shell: pwsh
         run: |
-          $sshDir = "$env:USERPROFILE\.ssh"
-          $sshKeyPath = "$sshDir\id_rsa"
-          $sshKey = "${{ secrets.IIS_SSH_KEY }}"
+              $sshDir = "$env:USERPROFILE\.ssh"
+              $sshKeyPath = "$sshDir\id_rsa"
+              $sshKey = "${{ secrets.IIS_SSH_KEY }}"
 
-          Write-Host "📁 Creating .ssh directory at: $sshDir"
-          New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+              Write-Host "📁 Creating .ssh directory at: $sshDir"
+              New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
 
-          Write-Host "📝 Writing SSH private key to: $sshKeyPath"
-          [IO.File]::WriteAllText($sshKeyPath, $sshKey)
+              Write-Host "📝 Writing SSH private key to: $sshKeyPath"
+              [IO.File]::WriteAllText($sshKeyPath, $sshKey)
 
-          Write-Host "🔒 Setting file permissions on SSH key..."
-          $CurrentUser = whoami
-          Write-Host "👤 Granting full control to user: $CurrentUser"
-          $icaclsResult = icacls $sshKeyPath /inheritance:r /grant:r "$CurrentUser:F"
-          Write-Host "🔐 icacls output:"
-          Write-Output $icaclsResult
+              # Optional: Log current user and path existence
+              $CurrentUser = whoami
+              Write-Host "::notice title=🔐 SSH Key Path::$sshKeyPath"
+              Write-Host "::notice title=👤 Current User::$CurrentUser"
+              Write-Host "::notice title=📁 SSH Directory Exists::$(Test-Path $sshDir)"
+              Write-Host "::notice title=🗝️ SSH Key File Exists::$(Test-Path $sshKeyPath)"
 
-          Write-Host "::notice title=🔐 SSH Key Path::$sshKeyPath"
-          Write-Host "::notice title=👤 Current User::$CurrentUser"
-          Write-Host "::notice title=📁 SSH Directory Exists::$(Test-Path $sshDir)"
-          Write-Host "::notice title=🗝️ SSH Key File Exists::$(Test-Path $sshKeyPath)"
+      - name: ✅ Test SSH Connection
+        shell: pwsh
+        run: |
+              $sshKeyPath = "$env:USERPROFILE\.ssh\id_rsa"
+              $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
+              ssh -v -i $sshKeyPath -o StrictHostKeyChecking=no $sshTarget "echo SSH connection successful"
+
 
    
 
