@@ -78,18 +78,30 @@ jobs:
               Write-Host "::notice title=📁 SSH Directory Exists::$(Test-Path $sshDir)"
               Write-Host "::notice title=🗝️ SSH Key File Exists::$(Test-Path $sshKeyPath)"
 
+      - name: 🔐 Generate SSH Key Pair (TEMP ONLY)
+        shell: pwsh
+        run: |
+            $sshDir = "$env:USERPROFILE\.ssh"
+            $privateKey = "$sshDir\id_rsa"
+            $publicKey  = "$sshDir\id_rsa.pub"
+
+            New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+
+            ssh-keygen -t rsa -b 4096 -f $privateKey -N "" | Out-Null
+
+            Write-Host "::notice title=📤 Public Key (authorized_keys)::$(Get-Content $publicKey -Raw)"
+            Write-Host "::notice title=🔐 Private Key (TESTING ONLY)::$(Get-Content $privateKey -Raw)"
+
       - name: ✅ Test SSH Connection
         shell: pwsh
         run: |
-              $sshDir = "$env:USERPROFILE\.ssh"
-              $sshKeyPath = "$sshDir\id_rsa"
-              $sshTarget = "${{ secrets.IIS_SSH_HOST }}"  # e.g. deploy@49.249.200.70
-              ssh -v -i $sshKeyPath -o StrictHostKeyChecking=no $sshTarget "echo '✅ SSH connection successful!'"
+            $sshDir = "$env:USERPROFILE\.ssh"
+            $sshKeyPath = "$sshDir\id_rsa"
+            $sshTarget = "${{ secrets.IIS_SSH_HOST }}"  # e.g. deploy@49.249.200.70
+            ssh -v -i $sshKeyPath -o StrictHostKeyChecking=no $sshTarget "echo '✅ SSH connection successful!'"
 
 
-              
-
-
+      
       # - name: 🔐 Setup SSH Key and Variables
       #   shell: pwsh
       #   run: |
