@@ -68,6 +68,9 @@ jobs:
               Write-Host "📝 Writing SSH private key to: $sshKeyPath"
               [IO.File]::WriteAllText($sshKeyPath, $sshKey)
 
+              icacls $sshKeyPath /inheritance:r
+              icacls $sshKeyPath /grant:r "$($env:USERNAME):(R)"
+
               # Optional: Log current user and path existence
               $CurrentUser = whoami
               Write-Host "::notice title=🔐 SSH Key Path::$sshKeyPath"
@@ -78,10 +81,11 @@ jobs:
       - name: ✅ Test SSH Connection
         shell: pwsh
         run: |
-              $sshKeyPath = "$env:USERPROFILE\.ssh\id_rsa"
+              $sshDir = "$env:USERPROFILE\.ssh"
+              $sshKeyPath = "$sshDir\id_rsa"
               $sshTarget = "${{ secrets.IIS_SSH_HOST }}"  # e.g. deploy@49.249.200.70
               ssh -v -i $sshKeyPath -o StrictHostKeyChecking=no $sshTarget "echo '✅ SSH connection successful!'"
-              
+
 
               
 
