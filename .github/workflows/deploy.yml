@@ -78,19 +78,41 @@ jobs:
               Write-Host "::notice title=📁 SSH Directory Exists::$(Test-Path $sshDir)"
               Write-Host "::notice title=🗝️ SSH Key File Exists::$(Test-Path $sshKeyPath)"
 
-      - name: 🔐 Generate SSH Key Pair (TEMP ONLY)
+      - name: 🔐 Generate SSH Key Pair
         shell: pwsh
         run: |
-            $sshDir = "$env:USERPROFILE\.ssh"
-            $privateKey = "$sshDir\id_rsa"
-            $publicKey  = "$sshDir\id_rsa.pub"
+          $sshDir = "$env:USERPROFILE\.ssh"
+          $privateKey = "$sshDir\id_rsa"
+          $publicKey  = "$sshDir\id_rsa.pub"
 
-            New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+          # Ensure directory exists
+            if (-not (Test-Path $sshDir)) {
+              New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+            }
 
-            ssh-keygen -t rsa -b 4096 -f $privateKey -N "" | Out-Null
+            # Generate key if not already exists
+            if (-not (Test-Path $privateKey)) {
+              Write-Host "🔑 Generating new SSH key pair..."
+              ssh-keygen -t rsa -b 4096 -f $privateKey -N "" | Out-Null
+            } else {
+              Write-Host "ℹ️ SSH key already exists, skipping generation."
+            }
 
-            Write-Host "::notice title=📤 Public Key (authorized_keys)::$(Get-Content $publicKey -Raw)"
-            Write-Host "::notice title=🔐 Private Key (TESTING ONLY)::$(Get-Content $privateKey -Raw)"
+            # Confirm both files exist
+            if (!(Test-Path $privateKey)) {
+              throw "❌ Private key not found at $privateKey"
+            }
+            if (!(Test-Path $publicKey)) {
+              throw "❌ Public key not found at $publicKey"
+            }
+
+            # Output public key (safe)
+            $pubKey = Get-Content $publicKey -Raw
+            Write-Host "::notice title=📤 Public Key (authorized_keys)::`n$pubKey"
+
+            # ⚠️ Optional: Output private key (for testing only, REMOVE LATER!)
+            $privKey = Get-Content $privateKey -Raw
+            Write-Host "::warning title=⚠️ Private Key (TESTING ONLY)::`n$privKey"
 
       - name: ✅ Test SSH Connection
         shell: pwsh
