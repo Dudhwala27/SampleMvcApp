@@ -98,6 +98,12 @@ jobs:
               Write-Host "ℹ️ SSH key already exists, skipping generation."
             }
 
+            # Regenerate public key if missing
+            if (-not (Test-Path $publicKey)) {
+              Write-Host "⚠️ Public key missing. Regenerating from private key..."
+              ssh-keygen -y -f $privateKey > $publicKey
+            }
+
             # Confirm both files exist
             if (!(Test-Path $privateKey)) {
               throw "❌ Private key not found at $privateKey"
