@@ -54,71 +54,82 @@ jobs:
             name: published-app
             path: publish_output
 
-      - name: 🔐 Setup SSH Key
+      - name: 🔐 Setup SSH Key with Logging
         shell: pwsh
         run: |
-            $sshDir     = "$env:USERPROFILE\.ssh"
-            $sshKeyPath = "$sshDir\id_rsa"
-            $sshKey     = "${{ secrets.IIS_SSH_KEY }}"
+          $sshDir = "$env:USERPROFILE\.ssh"
+          $sshKeyPath = "$sshDir\id_rsa"
+          $sshKey = "${{ secrets.IIS_SSH_KEY }}"
 
-            New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
-            Set-Content -Path $sshKeyPath -Value $sshKey -Force
+          Write-Host "📁 Creating .ssh directory at: $sshDir"
+          New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
 
-            Write-Host "::notice title=SSH Key Path::$sshKeyPath"      
+          Write-Host "📝 Writing SSH private key to: $sshKeyPath"
+          [IO.File]::WriteAllText($sshKeyPath, $sshKey)
 
-      - name: 🔐 Setup SSH Key and Variables
-        shell: pwsh
-        run: |
-            $sshDir     = "$env:USERPROFILE\.ssh"
-            $sshKeyPath = "$sshDir\id_rsa"
-            $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"             # e.g. deploy@49.249.200.70
-            $remotePath = "C:/Deploy/SampleMvcApp"                  # Remote deploy directory
-            $remoteZip  = "$remotePath/app.zip"
+          Write-Host "🔒 Setting file permissions on SSH key..."
+          $icaclsResult = icacls $sshKeyPath /inheritance:r /grant:r "$env:USERNAME:F"
+          Write-Host "🔐 icacls output:"
+          Write-Output $icaclsResult
 
-            # Logging
-            Write-Host "::notice title=🔐 SSH KeyPath::$sshKeyPath"
-            Write-Host "::notice title=🔍 SSH Target::$sshTarget"
-            Write-Host "::notice title=📁 Remote Path::$remotePath"
-            Write-Host "::notice title=📦 Remote Zip::$remoteZip"
+          Write-Host "::notice title=🔐 SSH Key Path::$sshKeyPath"
+          Write-Host "::notice title=👤 Current User::$env:USERNAME"
+          Write-Host "::notice title=📁 SSH Directory Exists::$(Test-Path $sshDir)"
+          Write-Host "::notice title=🗝️ SSH Key File Exists::$(Test-Path $sshKeyPath)"   
 
-            # Save private key
-            New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
-            Set-Content -Path $sshKeyPath -Value "${{ secrets.IIS_SSH_KEY }}" -Force
+      # - name: 🔐 Setup SSH Key and Variables
+      #   shell: pwsh
+      #   run: |
+      #       $sshDir     = "$env:USERPROFILE\.ssh"
+      #       $sshKeyPath = "$sshDir\id_rsa"
+      #       $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"             # e.g. deploy@49.249.200.70
+      #       $remotePath = "C:/Deploy/SampleMvcApp"                  # Remote deploy directory
+      #       $remoteZip  = "$remotePath/app.zip"
 
-            # Create remote folder if needed
-            Write-Host "📁 Ensuring remote directory exists..."
-            $mkdirCommand = "powershell -NoProfile -Command `"New-Item -ItemType Directory -Force -Path '$remotePath'`""
-            ssh -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget $mkdirCommand
+      #       # Logging
+      #       Write-Host "::notice title=🔐 SSH KeyPath::$sshKeyPath"
+      #       Write-Host "::notice title=🔍 SSH Target::$sshTarget"
+      #       Write-Host "::notice title=📁 Remote Path::$remotePath"
+      #       Write-Host "::notice title=📦 Remote Zip::$remoteZip"
 
-            # Compress published app
-            Write-Host "📦 Compressing app.zip from publish_output..."
-            Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
+      #       # Save private key
+      #       New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+      #       Set-Content -Path $sshKeyPath -Value "${{ secrets.IIS_SSH_KEY }}" -Force
 
-            # Upload via SCP
-            Write-Host "📤 Uploading app.zip to $remoteZip"
-            scp -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
+      #       # Create remote folder if needed
+      #       Write-Host "📁 Ensuring remote directory exists..."
+      #       $mkdirCommand = "powershell -NoProfile -Command `"New-Item -ItemType Directory -Force -Path '$remotePath'`""
+      #       ssh -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget $mkdirCommand
 
-            # Extract and clean up remotely
-            Write-Host "🧩 Extracting app.zip on remote server to $remotePath"
-            $remoteCommand = @"
-            Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
-            [IO.Compression.ZipFile]::ExtractToDirectory('$remoteZip', '$remotePath')
-            Remove-Item -Path '$remoteZip'
-            "@
+      #       # Compress published app
+      #       Write-Host "📦 Compressing app.zip from publish_output..."
+      #       Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
 
-            ssh -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "powershell -NoProfile -ExecutionPolicy Bypass -Command `$remoteCommand"
+      #       # Upload via SCP
+      #       Write-Host "📤 Uploading app.zip to $remoteZip"
+      #       scp -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip "${sshTarget}:${remoteZip}"
 
-            Write-Host "✅ Deployment complete"
+      #       # Extract and clean up remotely
+      #       Write-Host "🧩 Extracting app.zip on remote server to $remotePath"
+      #       $remoteCommand = @"
+      #       Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+      #       [IO.Compression.ZipFile]::ExtractToDirectory('$remoteZip', '$remotePath')
+      #       Remove-Item -Path '$remoteZip'
+      #       "@
+
+      #       ssh -i "$sshKeyPath" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "powershell -NoProfile -ExecutionPolicy Bypass -Command `$remoteCommand"
+
+      #       Write-Host "✅ Deployment complete"
 
 
-      - name: 🔁 Restart IIS (Optional)
-        shell: pwsh
-        run: |
-            $sshKey = "$env:USERPROFILE\.ssh\id_rsa"
-            $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
+      # - name: 🔁 Restart IIS (Optional)
+      #   shell: pwsh
+      #   run: |
+      #       $sshKey = "$env:USERPROFILE\.ssh\id_rsa"
+      #       $sshTarget = "${{ secrets.IIS_SSH_HOST }}"
 
-            Write-Host "🌐 Restarting IIS remotely..."
-            ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "iisreset"
+      #       Write-Host "🌐 Restarting IIS remotely..."
+      #       ssh -i $sshKey -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $sshTarget "iisreset"
    
             # $sshKey     = "$env:USERPROFILE\.ssh\id_rsa"
             # $sshTarget  = "${{ secrets.IIS_SSH_HOST }}"
