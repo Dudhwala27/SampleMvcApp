@@ -69,15 +69,17 @@ jobs:
 
           Write-Host "🔒 Setting file permissions on SSH key..."
           $CurrentUser = whoami
-          Write-Host "👤 Granting full control to user: $CurrentUser"
-          $icaclsResult = icacls $sshKeyPath /inheritance:r /grant:r "$CurrentUser:F"
+          $quotedUser = '"' + $CurrentUser + '"'
+          Write-Host "👤 Granting full control to user: $quotedUser"
+          $icaclsResult = icacls $sshKeyPath /inheritance:r /grant:r $quotedUser
           Write-Host "🔐 icacls output:"
           Write-Output $icaclsResult
 
           Write-Host "::notice title=🔐 SSH Key Path::$sshKeyPath"
           Write-Host "::notice title=👤 Current User::$CurrentUser"
           Write-Host "::notice title=📁 SSH Directory Exists::$(Test-Path $sshDir)"
-          Write-Host "::notice title=🗝️ SSH Key File Exists::$(Test-Path $sshKeyPath)"   
+          Write-Host "::notice title=🗝️ SSH Key File Exists::$(Test-Path $sshKeyPath)"
+   
 
       # - name: 🔐 Setup SSH Key and Variables
       #   shell: pwsh
