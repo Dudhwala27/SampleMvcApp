@@ -55,70 +55,77 @@ jobs:
             name: published-app
             path: publish_output
 
-      - name: 🔐 Setup SSH key for test
+      - name: 🔎 Port 22 reachability check
+        shell: pwsh
+        run: |
+              $host='${{ secrets.IIS_HOST }}'
+              $r = Test-NetConnection -ComputerName $host -Port 22 -WarningAction SilentlyContinue
+              Write-Host "::notice title=TCP 22 Reachable:: $($r.TcpTestSucceeded)"
+              if (-not $r.TcpTestSucceeded) {
+                Write-Host "::error title=Network:: Cannot reach $host:22 from runner"
+                exit 1
+              }
+
+      - name: 🧪 SSH key setup (if not already done)
         shell: pwsh
         run: |
               $sshDir   = "$env:USERPROFILE\.ssh"
               $privPath = Join-Path $sshDir 'id_rsa'
-              $key = @"
+              if (-not (Test-Path $privPath)) {
+                $key = @"
               ${{ secrets.IIS_SSH_KEY }}
               "@.Trim()
-
               New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
               Set-Content -Path $privPath -Value $key -Encoding ascii -NoNewline
-
               icacls $privPath /inheritance:r | Out-Null
               icacls $privPath /grant:r "$($env:USERNAME):(R)" | Out-Null
-
               ssh-keyscan -t rsa ${{ secrets.IIS_HOST }} 2>$null | Out-File "$sshDir\known_hosts" -Encoding ascii
+              }
 
-              # 🔎 Debug (works on pwsh 7+)
-              Write-Host "::notice title=Key Exists::$(Test-Path $privPath)"
-              Write-Host "::notice title=Key Size (bytes)::$((Get-Item $privPath).Length)"
-              Write-Host "::notice title=Key First Line::$(Get-Content $privPath -TotalCount 1)"  # may show *** due to secret masking
-
-              # Read first 3 bytes without using -Encoding byte
-              $allBytes = [System.IO.File]::ReadAllBytes($privPath)
-              $take = [Math]::Min(3, $allBytes.Length)
-              $firstBytes = $allBytes[0..($take-1)]
-              $hex = ($firstBytes | ForEach-Object { '{0:X2}' -f $_ }) -join ' '
-              Write-Host "::notice title=Encoding First Bytes::$hex"   # Expect NOT 'EF BB BF' (that would be BOM)
-
-      - name: 🧪 Test SSH connection to IIS (pwsh-safe)
+      - name: 🚦 SSH test (fail fast, full logs)
         shell: pwsh
         run: |
               try {
                 $sshExe = (Get-Command ssh -ErrorAction Stop).Source
                 $args = @(
-                  '-v',
+                  '-vvv',                                 # max verbosity
                   '-i', "$env:USERPROFILE\.ssh\id_rsa",
                   '-o', 'StrictHostKeyChecking=no',
-                  "${{ secrets.IIS_USER }}@${{ secrets.IIS_HOST }}",
+                  '-o', 'PreferredAuthentications=publickey',
+                  '-o', 'PasswordAuthentication=no',      # avoid password prompt hangs
+                  '-o', 'BatchMode=yes',                  # fail if key not accepted
+                  '-o', 'ConnectTimeout=20',              # 20s connect timeout
+                  '-o', 'ConnectionAttempts=1',           # no retries
+                  '${{ secrets.IIS_USER }}@${{ secrets.IIS_HOST }}',
                   'whoami'
                 )
 
-                Write-Host "::notice title=SSH Path::$sshExe"
-                Write-Host "::notice title=SSH Args::" + ($args -join ' ')
+                Write-Host "::notice title=ssh.exe::$sshExe"
+                Write-Host "::notice title=args::" + ($args -join ' ')
 
-                # Invoke ssh.exe with proper args (no single-string)
-                $output = & $sshExe @args 2>&1
-                $code = $LASTEXITCODE
+                # Run with a hard overall timeout (45s) in case the server stalls after connect
+                $job = Start-Job { param($exe,$a) & $exe @a 2>&1; $LASTEXITCODE } -ArgumentList $sshExe,$args
+                if (-not (Wait-Job $job -Timeout 45)) {
+                  Stop-Job $job | Out-Null
+                  Receive-Job $job | ForEach-Object { Write-Host "::error title=SSH Partial Log:: $_" }
+                  throw "Timed out waiting for SSH after 45s"
+                }
+                $output = Receive-Job $job
+                $exit   = ($output | Select-Object -Last 1)
+                $log    = $output | Select-Object -SkipLast 1
 
-                if ($code -eq 0) {
-                  Write-Host "::notice title=SSH Output::$output"
-                  Write-Host "::notice title=SSH Test::Connection successful ✅"
+                if ($exit -eq 0) {
+                  Write-Host "::notice title=SSH Output::$(($log | Out-String).Trim())"
+                  Write-Host "::notice title=Result::Connection successful ✅"
                 } else {
-                  Write-Host "::error title=SSH Test Failed::Exit code $code"
-                  Write-Host "::error title=SSH Failure Log::$output"
+                  Write-Host "::error title=SSH Failed (exit $exit)::$(($log | Out-String).Trim())"
                   exit 1
                 }
               } catch {
-                Write-Host "::error title=SSH Test Exception:: $($_.Exception.Message)"
+                Write-Host "::error title=SSH Exception:: $($_.Exception.Message)"
                 exit 1
               }
-                
 
-      
       # - name: 🔐 Setup SSH Key and Variables
       #   shell: pwsh
       #   run: |
