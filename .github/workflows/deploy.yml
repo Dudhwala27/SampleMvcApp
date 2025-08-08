@@ -82,6 +82,42 @@ jobs:
               ssh-keyscan -t rsa ${{ secrets.IIS_HOST }} 2>$null | Out-File "$sshDir\known_hosts" -Encoding ascii
               }
 
+      - name: ✅ Validate private key format
+        shell: pwsh
+        run: |
+              $sshDir   = "$env:USERPROFILE\.ssh"
+              $privPath = Join-Path $sshDir 'id_rsa'
+              $key = @"
+              ${{ secrets.IIS_SSH_KEY }}
+              "@.Trim()
+
+              New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+              Set-Content -Path $privPath -Value $key -Encoding ascii -NoNewline
+
+              icacls $privPath /inheritance:r | Out-Null
+              icacls $privPath /grant:r "$($env:USERNAME):(R)" | Out-Null
+
+              # Check for BOM (should NOT be EF BB BF)
+              $bytes = [System.IO.File]::ReadAllBytes($privPath)
+              if ($bytes.Length -ge 3) {
+                $sig = ($bytes[0..2] | ForEach-Object { '{0:X2}' -f $_ }) -join ' '
+                Write-Host "::notice title=First 3 bytes::$sig"
+              }
+
+              # Ask ssh-keygen to derive a public key; if it fails, the private key is invalid
+              try {
+                $pub = ssh-keygen -y -f $privPath 2>&1
+                if ($LASTEXITCODE -ne 0) {
+                  Write-Host "::error title=Invalid private key:: $pub"
+                  exit 1
+                } else {
+                  Write-Host "::notice title=Derived public key OK:: $(($pub -replace '\s+',' ').Substring(0,[Math]::Min(60,$pub.Length)))..."
+                }
+              } catch {
+                Write-Host "::error title=ssh-keygen failed:: $($_.Exception.Message)"
+                exit 1
+              }
+
       - name: 🚦 SSH test (fail fast, full logs)
         shell: pwsh
         run: |
