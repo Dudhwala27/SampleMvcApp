@@ -58,11 +58,11 @@ jobs:
       - name: 🔎 Port 22 reachability check
         shell: pwsh
         run: |
-              $host='${{ secrets.IIS_HOST }}'
-              $r = Test-NetConnection -ComputerName $host -Port 22 -WarningAction SilentlyContinue
+              $remotehost='${{ secrets.IIS_HOST }}'
+              $r = Test-NetConnection -ComputerName $remotehost -Port 22 -WarningAction SilentlyContinue
               Write-Host "::notice title=TCP 22 Reachable:: $($r.TcpTestSucceeded)"
               if (-not $r.TcpTestSucceeded) {
-                Write-Host "::error title=Network:: Cannot reach $host:22 from runner"
+                Write-Host "::error title=Network:: Cannot reach $remotehost:22 from runner"
                 exit 1
               }
 
