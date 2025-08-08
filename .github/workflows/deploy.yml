@@ -55,78 +55,67 @@ jobs:
             name: published-app
             path: publish_output
 
-      - name: 🔐 Setup SSH Key (No icacls)
+      - name: 🔐 Setup SSH key for test
         shell: pwsh
         run: |
-              $sshDir = "$env:USERPROFILE\.ssh"
-              $sshKeyPath = "$sshDir\id_rsa"
-              $sshKey = "${{ secrets.IIS_SSH_KEY }}"
+              $sshDir   = "$env:USERPROFILE\.ssh"
+              $privPath = Join-Path $sshDir 'id_rsa'
+              $key = @"
+              ${{ secrets.IIS_SSH_KEY }}
+              "@.Trim()
 
-              Write-Host "📁 Creating .ssh directory at: $sshDir"
               New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+              Set-Content -Path $privPath -Value $key -Encoding ascii -NoNewline
 
-              Write-Host "📝 Writing SSH private key to: $sshKeyPath"
-              [IO.File]::WriteAllText($sshKeyPath, $sshKey)
+              icacls $privPath /inheritance:r | Out-Null
+              icacls $privPath /grant:r "$($env:USERNAME):(R)" | Out-Null
 
-              icacls $sshKeyPath /inheritance:r
-              icacls $sshKeyPath /grant:r "$($env:USERNAME):(R)"
+              ssh-keyscan -t rsa ${{ secrets.IIS_HOST }} 2>$null | Out-File "$sshDir\known_hosts" -Encoding ascii
 
-              # Optional: Log current user and path existence
-              $CurrentUser = whoami
-              Write-Host "::notice title=🔐 SSH Key Path::$sshKeyPath"
-              Write-Host "::notice title=👤 Current User::$CurrentUser"
-              Write-Host "::notice title=📁 SSH Directory Exists::$(Test-Path $sshDir)"
-              Write-Host "::notice title=🗝️ SSH Key File Exists::$(Test-Path $sshKeyPath)"
+              # 🔎 Debug (works on pwsh 7+)
+              Write-Host "::notice title=Key Exists::$(Test-Path $privPath)"
+              Write-Host "::notice title=Key Size (bytes)::$((Get-Item $privPath).Length)"
+              Write-Host "::notice title=Key First Line::$(Get-Content $privPath -TotalCount 1)"  # may show *** due to secret masking
 
-      - name: 🔐 Generate SSH Key Pair
+              # Read first 3 bytes without using -Encoding byte
+              $allBytes = [System.IO.File]::ReadAllBytes($privPath)
+              $take = [Math]::Min(3, $allBytes.Length)
+              $firstBytes = $allBytes[0..($take-1)]
+              $hex = ($firstBytes | ForEach-Object { '{0:X2}' -f $_ }) -join ' '
+              Write-Host "::notice title=Encoding First Bytes::$hex"   # Expect NOT 'EF BB BF' (that would be BOM)
+
+      - name: 🧪 Test SSH connection to IIS (pwsh-safe)
         shell: pwsh
         run: |
-          $sshDir = "$env:USERPROFILE\.ssh"
-          $privateKey = "$sshDir\id_rsa"
-          $publicKey  = "$sshDir\id_rsa.pub"
+              try {
+                $sshExe = (Get-Command ssh -ErrorAction Stop).Source
+                $args = @(
+                  '-v',
+                  '-i', "$env:USERPROFILE\.ssh\id_rsa",
+                  '-o', 'StrictHostKeyChecking=no',
+                  "${{ secrets.IIS_USER }}@${{ secrets.IIS_HOST }}",
+                  'whoami'
+                )
 
-          # Ensure directory exists
-            if (-not (Test-Path $sshDir)) {
-              New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
-            }
+                Write-Host "::notice title=SSH Path::$sshExe"
+                Write-Host "::notice title=SSH Args::" + ($args -join ' ')
 
-            # Generate key if not already exists
-            if (-not (Test-Path $privateKey)) {
-              Write-Host "🔑 Generating new SSH key pair..."
-              ssh-keygen -t rsa -b 4096 -f $privateKey -N "" | Out-Null
-            } else {
-              Write-Host "ℹ️ SSH key already exists, skipping generation."
-            }
+                # Invoke ssh.exe with proper args (no single-string)
+                $output = & $sshExe @args 2>&1
+                $code = $LASTEXITCODE
 
-            # Regenerate public key if missing
-            if (-not (Test-Path $publicKey)) {
-              Write-Host "⚠️ Public key missing. Regenerating from private key..."
-              ssh-keygen -y -f $privateKey > $publicKey
-            }
-
-            # Confirm both files exist
-            if (!(Test-Path $privateKey)) {
-              throw "❌ Private key not found at $privateKey"
-            }
-            if (!(Test-Path $publicKey)) {
-              throw "❌ Public key not found at $publicKey"
-            }
-
-            # Output public key (safe)
-            $pubKey = Get-Content $publicKey -Raw
-            Write-Host "::notice title=📤 Public Key (authorized_keys)::`n$pubKey"
-
-            # ⚠️ Optional: Output private key (for testing only, REMOVE LATER!)
-            $privKey = Get-Content $privateKey -Raw
-            Write-Host "::warning title=⚠️ Private Key (TESTING ONLY)::`n$privKey"
-
-      - name: ✅ Test SSH Connection
-        shell: pwsh
-        run: |
-            $sshDir = "$env:USERPROFILE\.ssh"
-            $sshKeyPath = "$sshDir\id_rsa"
-            $sshTarget = "${{ secrets.IIS_SSH_HOST }}"  # e.g. deploy@49.249.200.70
-            ssh -v -i $sshKeyPath -o StrictHostKeyChecking=no $sshTarget "echo '✅ SSH connection successful!'"
+                if ($code -eq 0) {
+                  Write-Host "::notice title=SSH Output::$output"
+                  Write-Host "::notice title=SSH Test::Connection successful ✅"
+                } else {
+                  Write-Host "::error title=SSH Test Failed::Exit code $code"
+                  Write-Host "::error title=SSH Failure Log::$output"
+                  exit 1
+                }
+              } catch {
+                Write-Host "::error title=SSH Test Exception:: $($_.Exception.Message)"
+                exit 1
+              }
 
 
       
